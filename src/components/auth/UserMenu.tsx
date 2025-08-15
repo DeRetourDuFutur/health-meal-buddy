@@ -16,7 +16,14 @@ export function UserMenu() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const initials = (user?.email?.[0] || "U").toUpperCase();
+  const displayName = (user?.user_metadata as any)?.display_name as string | undefined;
+  const initialsSource = displayName || user?.email || "U";
+  const initials = initialsSource
+    .split(/\s+|@/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase())
+    .join("") || "U";
 
   const handleSignOut = async () => {
     await signOut();
@@ -33,7 +40,7 @@ export function UserMenu() {
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <span className="hidden md:inline text-sm max-w-[200px] truncate">
-              {user?.email || "Compte"}
+              {displayName || user?.email || "Compte"}
             </span>
           </div>
         </Button>
@@ -42,7 +49,7 @@ export function UserMenu() {
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           Connecté en tant que
           <div className="text-foreground text-sm font-medium truncate">
-            {user?.email}
+            {displayName || user?.email}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

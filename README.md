@@ -96,3 +96,9 @@ npm run lint
 	- Mode “Changement”: après lien reçu → formulaire nouveau mot de passe → mise à jour (toast) → `/login`.
 
 - Soft-redirect: si déjà connecté, `/register` et `/reset` redirigent vers `/planification`.
+
+## Préférences & Profil (Étape 15)
+
+- Profil: modification du nom d’affichage (metadata Supabase: `display_name`).
+- Apparence: thème clair/sombre/système via `next-themes` (persistance locale) + synchro metadata `theme` si connecté.
+- Le menu utilisateur et les pages utilisent `display_name` si présent (sinon email). 

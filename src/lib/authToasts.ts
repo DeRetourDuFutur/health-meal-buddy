@@ -25,4 +25,10 @@ export const authToasts = {
   resetError(message?: string) {
     toast({ description: message || "Réinitialisation impossible." });
   },
+  profileUpdated() {
+    toast({ description: "Profil mis à jour." });
+  },
+  genericError(message?: string) {
+    toast({ description: message || "Une erreur est survenue." });
+  },
 };
