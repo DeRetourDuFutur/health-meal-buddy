@@ -48,6 +48,25 @@ npm run dev
 npm run lint
 ```
 
+## Routes
+
+| Page                 | URL            |
+|----------------------|----------------|
+| Accueil              | `/`            |
+| Mon Profil           | `/profil`      |
+| Planification Repas  | `/planification` |
+| Aliments             | `/aliments`    |
+| Recettes             | `/recettes`    |
+| Liste de Courses     | `/courses`     |
+| Suivi Médical        | `/suivi`       |
+| Médicaments          | `/medicaments` |
+| Statistiques         | `/statistiques`|
+| Paramètres           | `/parametres`  |
+| Connexion            | `/login`       |
+| Inscription          | `/register`    |
+| Réinitialisation MDp | `/reset`       |
+| 404 (catch-all)      | `*`            |
+
 ## Notes
 
 - Normalisation des routes sans slash final (ex: `/route/` → `/route`).
