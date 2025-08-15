@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { LucideIcon } from "lucide-react";
 
 interface FeatureCardProps {
@@ -63,13 +64,17 @@ export function FeatureCard({
         ))}
       </ul>
 
-      <Button 
-        variant={variant} 
-        className="w-full" 
-        disabled={comingSoon}
-      >
-        {buttonText}
-      </Button>
+      {comingSoon ? (
+        <Button variant={variant} className="w-full" disabled>
+          {buttonText}
+        </Button>
+      ) : (
+        <Link to="/planification" className="block">
+          <Button variant={variant} className="w-full">
+            {buttonText}
+          </Button>
+        </Link>
+      )}
     </Card>
   );
 }

@@ -50,7 +50,7 @@ const featuresData = [
 
 export function FeaturesSection() {
   return (
-    <section className="py-20 bg-muted/30">
+  <section id="features" className="py-20 bg-muted/30">
       <div className="container mx-auto px-6">
         <div className="text-center space-y-4 mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground">

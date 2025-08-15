@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Heart, Apple, Calendar, BarChart3 } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
@@ -64,12 +65,16 @@ export function HeroSection() {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button variant="hero" size="xl" className="min-w-48">
-              Commencer maintenant
-            </Button>
-            <Button variant="outline" size="xl" className="min-w-48">
-              En savoir plus
-            </Button>
+            <Link to="/planification" className="min-w-48">
+              <Button variant="hero" size="xl" className="w-full">
+                Commencer maintenant
+              </Button>
+            </Link>
+            <a href="#features" className="min-w-48">
+              <Button variant="outline" size="xl" className="w-full">
+                En savoir plus
+              </Button>
+            </a>
           </div>
 
           {/* Features grid */}

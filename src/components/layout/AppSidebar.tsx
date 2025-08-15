@@ -11,7 +11,7 @@ import {
   Heart,
   FileText
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, Link } from "react-router-dom";
 
 import {
   Sidebar,
@@ -99,17 +99,17 @@ export function AppSidebar() {
       <SidebarContent className="bg-gradient-card">
         <div className="p-4 border-b">
           {!collapsed && (
-            <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3 group">
               <img src="/src/assets/app-icon.png" alt="NutriSanté+" className="w-8 h-8" />
               <div>
-                <h2 className="font-bold text-lg bg-gradient-hero bg-clip-text text-transparent">
+                <h2 className="font-bold text-lg bg-gradient-hero bg-clip-text text-transparent group-hover:opacity-90">
                   NutriSanté+
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   Santé & Nutrition
                 </p>
               </div>
-            </div>
+            </Link>
           )}
         </div>
 
