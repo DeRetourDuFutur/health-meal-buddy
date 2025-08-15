@@ -8,8 +8,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
-import { useState } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { useEffect, useMemo, useState } from "react";
+import { authToasts } from "@/lib/authToasts";
 
 const schema = z.object({
   email: z.string().email("Email invalide"),
@@ -23,22 +23,46 @@ const Login = () => {
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [remember, setRemember] = useState(true);
+
+  // Focus email au montage et mémorisation de l'email tenté (localStorage)
+  const emailKey = useMemo(() => "nutri:lastEmail", []);
+  useEffect(() => {
+    const last = localStorage.getItem(emailKey);
+    if (last) {
+      form.setValue("email", last);
+    }
+    // focus email input si dispo
+    const el = document.querySelector<HTMLInputElement>('input[type="email"]');
+    el?.focus();
+  }, [emailKey]);
+
+  // Redirection douce si déjà connecté
+  useEffect(() => {
+    if (user) {
+      navigate("/planification", { replace: true });
+    }
+  }, [user, navigate]);
 
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true);
+    if (remember) {
+      localStorage.setItem(emailKey, values.email);
+    } else {
+      localStorage.removeItem(emailKey);
+    }
     const { error } = await signIn(values.email, values.password);
     setSubmitting(false);
     if (error) {
-      // Map any Supabase auth error to a generic French message
       const message = "Email ou mot de passe incorrect.";
       form.setError("password", { message });
-      toast({ description: message });
+      authToasts.loginError();
       return;
     }
-    toast({ description: "Connexion réussie." });
+    authToasts.loginSuccess();
     navigate("/planification", { replace: true });
   };
 
@@ -81,9 +105,20 @@ const Login = () => {
                     )}
                   />
 
-                  <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting ? "Connexion..." : "Se connecter"}
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-primary"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                      />
+                      Se souvenir de moi
+                    </label>
+                    <Button type="submit" className="min-w-36" disabled={submitting}>
+                      {submitting ? "Connexion..." : "Se connecter"}
+                    </Button>
+                  </div>
                 </form>
               </Form>
               <div className="mt-4 text-sm text-muted-foreground text-center">

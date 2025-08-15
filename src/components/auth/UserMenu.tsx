@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { toast } from "@/components/ui/use-toast";
+import { authToasts } from "@/lib/authToasts";
 
 export function UserMenu() {
   const { user, signOut } = useAuth();
@@ -20,7 +20,7 @@ export function UserMenu() {
 
   const handleSignOut = async () => {
     await signOut();
-    toast({ description: "Déconnecté." });
+    authToasts.logout();
     navigate("/");
   };
 

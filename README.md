@@ -71,3 +71,10 @@ npm run lint
 
 - Normalisation des routes sans slash final (ex: `/route/` → `/route`).
 - Les routes d’auth `/login`, `/register`, `/reset` sont présentes mais non protégées (à activer plus tard).
+
+## Auth (Étapes 11–12)
+
+- Connexion: `/login` (RHF + zod). En cas d’échec, message générique: « Email ou mot de passe incorrect. »
+- Déjà connecté: accéder à `/login` redirige vers `/planification`.
+- Menu utilisateur (en‑tête): affiche l’email, lien vers `/profil`, action « Déconnexion » (redirige vers `/`).
+- Page `Profil`: email, id utilisateur et date de création (placeholders pour avatar/nom à venir).
