@@ -102,3 +102,72 @@ npm run lint
 - Profil: modification du nom d’affichage (metadata Supabase: `display_name`).
 - Apparence: thème clair/sombre/système via `next-themes` (persistance locale) + synchro metadata `theme` si connecté.
 - Le menu utilisateur et les pages utilisent `display_name` si présent (sinon email). 
+
+## Aliments (Étape 16)
+
+SQL à exécuter dans Supabase (SQL Editor). Script idempotent et complet (table, contraintes, triggers, RLS):
+
+```
+-- Table
+create table if not exists public.aliments (
+	id uuid primary key default gen_random_uuid(),
+	user_id uuid not null references auth.users(id) on delete cascade,
+	name text not null,
+	kcal_per_100g numeric(10,2) not null default 0,
+	protein_g_per_100g numeric(10,2) not null default 0,
+	carbs_g_per_100g numeric(10,2) not null default 0,
+	fat_g_per_100g numeric(10,2) not null default 0,
+	notes text,
+	created_at timestamptz not null default now(),
+	updated_at timestamptz not null default now()
+);
+
+-- Indexes & contrainte d'unicité (un nom par utilisateur)
+create index if not exists aliments_user_id_idx on public.aliments(user_id);
+create unique index if not exists aliments_user_name_uniq on public.aliments(user_id, name);
+
+-- Trigger updated_at
+create or replace function public.set_updated_at() returns trigger
+language plpgsql as $$
+begin
+	new.updated_at = now();
+	return new;
+end $$;
+
+drop trigger if exists set_aliments_updated_at on public.aliments;
+create trigger set_aliments_updated_at before update on public.aliments
+for each row execute function public.set_updated_at();
+
+-- Activer RLS
+alter table public.aliments enable row level security;
+
+-- Politiques RLS (idempotentes via vérification préalable)
+do $$
+begin
+	if not exists (select 1 from pg_policies where schemaname='public' and tablename='aliments' and policyname='aliments_select_own') then
+		create policy aliments_select_own on public.aliments
+			for select using (auth.uid() = user_id);
+	end if;
+	if not exists (select 1 from pg_policies where schemaname='public' and tablename='aliments' and policyname='aliments_insert_own') then
+		create policy aliments_insert_own on public.aliments
+			for insert with check (auth.uid() = user_id);
+	end if;
+	if not exists (select 1 from pg_policies where schemaname='public' and tablename='aliments' and policyname='aliments_update_own') then
+		create policy aliments_update_own on public.aliments
+			for update using (auth.uid() = user_id);
+	end if;
+	if not exists (select 1 from pg_policies where schemaname='public' and tablename='aliments' and policyname='aliments_delete_own') then
+		create policy aliments_delete_own on public.aliments
+			for delete using (auth.uid() = user_id);
+	end if;
+end $$;
+```
+
+Flux utilisateur (MVP):
+- Accès à `/aliments` (protégé): liste triée par nom.
+- Créer un aliment (dialog): nom obligatoire, macros ≥ 0, notes optionnelles illimitées. Conflit de nom → erreur claire.
+- Éditer/Supprimer (confirm) avec toasts FR.
+
+Remarques RLS:
+- Chaque requête est filtrée par `auth.uid()` via les politiques; une clé publique (anon) suffit côté client.
+- Si vous voyez des 401/403, vérifiez que vous êtes connecté et que RLS est bien activé avec ces politiques.
