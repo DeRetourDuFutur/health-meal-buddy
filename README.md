@@ -171,3 +171,7 @@ Flux utilisateur (MVP):
 Remarques RLS:
 - Chaque requête est filtrée par `auth.uid()` via les politiques; une clé publique (anon) suffit côté client.
 - Si vous voyez des 401/403, vérifiez que vous êtes connecté et que RLS est bien activé avec ces politiques.
+
+## Mémoire du projet
+
+L’historique complet des étapes (0 → 15) est disponible dans [docs/memoire-projet.md](./docs/memoire-projet.md).
