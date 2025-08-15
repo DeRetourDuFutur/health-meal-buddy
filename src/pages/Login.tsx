@@ -7,7 +7,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { authToasts } from "@/lib/authToasts";
 
@@ -25,6 +25,7 @@ const Login = () => {
   });
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [submitting, setSubmitting] = useState(false);
   const [remember, setRemember] = useState(true);
 
@@ -62,8 +63,11 @@ const Login = () => {
       authToasts.loginError();
       return;
     }
-    authToasts.loginSuccess();
-    navigate("/planification", { replace: true });
+  authToasts.loginSuccess();
+  const params = new URLSearchParams(location.search);
+  const returnTo = params.get("returnTo");
+  const target = returnTo && returnTo.startsWith("/") ? returnTo : "/planification";
+  navigate(target, { replace: true });
   };
 
   return (

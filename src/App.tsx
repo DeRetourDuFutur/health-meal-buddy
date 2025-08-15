@@ -19,6 +19,7 @@ import Parametres from "./pages/Parametres";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Reset from "./pages/Reset";
+import RequireAuth from "@/components/auth/RequireAuth";
 
 const queryClient = new QueryClient();
 
@@ -32,15 +33,15 @@ const App = () => (
           <PathNormalizer />
           <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/profil" element={<Profil />} />
-          <Route path="/planification" element={<Planification />} />
-          <Route path="/aliments" element={<Aliments />} />
-          <Route path="/recettes" element={<Recettes />} />
-          <Route path="/courses" element={<Courses />} />
-          <Route path="/suivi" element={<Suivi />} />
-          <Route path="/medicaments" element={<Medicaments />} />
-          <Route path="/statistiques" element={<Statistiques />} />
-          <Route path="/parametres" element={<Parametres />} />
+          <Route path="/profil" element={<RequireAuth><Profil /></RequireAuth>} />
+          <Route path="/planification" element={<RequireAuth><Planification /></RequireAuth>} />
+          <Route path="/aliments" element={<RequireAuth><Aliments /></RequireAuth>} />
+          <Route path="/recettes" element={<RequireAuth><Recettes /></RequireAuth>} />
+          <Route path="/courses" element={<RequireAuth><Courses /></RequireAuth>} />
+          <Route path="/suivi" element={<RequireAuth><Suivi /></RequireAuth>} />
+          <Route path="/medicaments" element={<RequireAuth><Medicaments /></RequireAuth>} />
+          <Route path="/statistiques" element={<RequireAuth><Statistiques /></RequireAuth>} />
+          <Route path="/parametres" element={<RequireAuth><Parametres /></RequireAuth>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reset" element={<Reset />} />

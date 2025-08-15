@@ -78,3 +78,9 @@ npm run lint
 - Déjà connecté: accéder à `/login` redirige vers `/planification`.
 - Menu utilisateur (en‑tête): affiche l’email, lien vers `/profil`, action « Déconnexion » (redirige vers `/`).
 - Page `Profil`: email, id utilisateur et date de création (placeholders pour avatar/nom à venir).
+
+## Routes protégées (Étape 13)
+
+- Protégées: `/profil`, `/planification`, `/aliments`, `/recettes`, `/courses`, `/suivi`, `/medicaments`, `/statistiques`, `/parametres`.
+- Publiques: `/`, `/login`, `/register`, `/reset`, `*`.
+- Accès déconnecté vers une route protégée → redirection vers `/login?returnTo=<chemin>`, puis retour automatique après connexion.
