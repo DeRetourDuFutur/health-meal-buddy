@@ -84,3 +84,15 @@ npm run lint
 - Protégées: `/profil`, `/planification`, `/aliments`, `/recettes`, `/courses`, `/suivi`, `/medicaments`, `/statistiques`, `/parametres`.
 - Publiques: `/`, `/login`, `/register`, `/reset`, `*`.
 - Accès déconnecté vers une route protégée → redirection vers `/login?returnTo=<chemin>`, puis retour automatique après connexion.
+
+## Auth (Étape 14)
+
+- Inscription `/register` (RHF + zod, confirmation de mot de passe):
+	- Aucune confirmation par email dans ce projet: `signUp` connecte immédiatement l’utilisateur.
+	- Succès: toast « Inscription réussie. » → redirection `/planification`.
+
+- Réinitialisation `/reset`:
+	- Mode “Demande”: saisie email → envoi du lien (toast) → redirection `/login`.
+	- Mode “Changement”: après lien reçu → formulaire nouveau mot de passe → mise à jour (toast) → `/login`.
+
+- Soft-redirect: si déjà connecté, `/register` et `/reset` redirigent vers `/planification`.
