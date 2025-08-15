@@ -3,12 +3,15 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 interface AppLayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { user } = useAuth();
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -30,9 +33,13 @@ export function AppLayout({ children }: AppLayoutProps) {
               <div className="text-sm text-muted-foreground hidden md:block">
                 Votre assistant santé & nutrition
               </div>
-              <Link to="/login">
-                <Button variant="outline" size="sm">Se connecter</Button>
-              </Link>
+              {user ? (
+                <UserMenu />
+              ) : (
+                <Link to="/login">
+                  <Button variant="outline" size="sm">Se connecter</Button>
+                </Link>
+              )}
             </div>
           </header>
           
