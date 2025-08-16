@@ -49,6 +49,100 @@ export async function listAliments(): Promise<Aliment[]> {
   return data as Aliment[];
 }
 
+// === Étape 17 — Recherche / Filtres / Tri / Pagination ===
+export type AlimentsSortBy = "name" | "kcal" | "prot" | "carb" | "fat";
+export type AlimentsSort = { by: AlimentsSortBy; dir: "asc" | "desc" }[];
+export type AlimentsFilters = {
+  kcalMin?: number; kcalMax?: number;
+  protMin?: number; protMax?: number;
+  carbMin?: number; carbMax?: number;
+  fatMin?: number;  fatMax?: number;
+};
+export type AlimentsQueryParams = {
+  q?: string;
+  filters?: AlimentsFilters;
+  sort?: AlimentsSort; // on n'applique que le premier élément
+  page?: number; // défaut 1
+  pageSize?: number; // défaut 10
+};
+
+export type AlimentsPagedResult = {
+  items: Aliment[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
+
+function mapColumn(by: AlimentsSortBy): keyof Aliment {
+  switch (by) {
+    case "kcal": return "kcal_per_100g";
+    case "prot": return "protein_g_per_100g";
+    case "carb": return "carbs_g_per_100g";
+    case "fat":  return "fat_g_per_100g";
+    default:      return "name";
+  }
+}
+
+function applyRange(
+  qb: any,
+  column: keyof Aliment,
+  min?: number,
+  max?: number
+) {
+  if (min !== undefined && max !== undefined && min > max) {
+    // Incohérent -> ignorer la contrainte
+    return qb;
+  }
+  if (min !== undefined) qb = qb.gte(column as string, min);
+  if (max !== undefined) qb = qb.lte(column as string, max);
+  return qb;
+}
+
+export async function listAlimentsPaged(params: AlimentsQueryParams = {}): Promise<AlimentsPagedResult> {
+  const q = params.q?.trim() ?? "";
+  const filters = params.filters ?? {};
+  const sort = (params.sort && params.sort.length > 0)
+    ? params.sort[0]
+    : { by: "name" as AlimentsSortBy, dir: "asc" as const };
+  const pageSize = params.pageSize && params.pageSize > 0 ? params.pageSize : 10;
+  const pageRaw = params.page && params.page > 0 ? params.page : 1;
+
+  let qb = supabase
+    .from("aliments")
+    .select("*", { count: "exact" });
+
+  if (q) {
+    qb = qb.ilike("name", `%${q}%`);
+  }
+
+  qb = applyRange(qb, "kcal_per_100g", filters.kcalMin, filters.kcalMax);
+  qb = applyRange(qb, "protein_g_per_100g", filters.protMin, filters.protMax);
+  qb = applyRange(qb, "carbs_g_per_100g", filters.carbMin, filters.carbMax);
+  qb = applyRange(qb, "fat_g_per_100g", filters.fatMin, filters.fatMax);
+
+  const sortCol = mapColumn(sort.by);
+  qb = qb.order(sortCol as string, { ascending: sort.dir === "asc" });
+
+  const offset = (pageRaw - 1) * pageSize;
+  qb = qb.range(offset, offset + pageSize - 1);
+
+  const { data, count, error } = await qb;
+  if (error) throw new Error(mapPgErrorToMessage(error.code, error.message));
+
+  const total = count ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize || 1));
+  const page = Math.min(Math.max(1, pageRaw), pageCount);
+
+  return {
+    items: (data ?? []) as Aliment[],
+    total,
+    page,
+    pageSize,
+    pageCount,
+  };
+}
+
 export async function createAliment(input: AlimentInput): Promise<Aliment> {
   const session = (await supabase.auth.getSession()).data.session;
   const userId = session?.user.id;
