@@ -129,6 +129,23 @@ Ce document récapitule toutes les étapes du projet (0 à 15) avec objectifs, a
     - `feat(aliments): data layer with search/filters/sort/pagination (paged list)`
     - `feat(aliments): UI search/filters/sort + URL sync + pagination`
 
+## Étape 18 — Recettes (SQL + Data + UI)
+
+- Objectifs
+  - Définir le modèle Recettes et Ingrédients de recette avec RLS par utilisateur.
+  - Créer la couche data et les hooks React Query (liste avec items + aliments, CRUD, gestion d’ingrédients).
+  - Réaliser l’UI `/recettes`: liste, création/édition, gestion d’ingrédients, totaux et par portion.
+- Actions
+  - SQL idempotent: tables `recipes`, `recipe_items`, indexes, triggers `updated_at`, politiques RLS (sélect/insert/update/delete) limitées à `auth.uid()`.
+  - Data: `src/lib/db/recipes.ts` — types `Recipe`, `RecipeItem`, `RecipeWithItems`, `listRecipes()`, `create/update/deleteRecipe`, `add/update/deleteRecipeItem`, `computeRecipeTotals()`.
+  - Hooks: `src/hooks/useRecipes.ts` — `useRecipes` et mutations avec invalidation `['recipes']`.
+  - UI: `src/pages/Recettes.tsx` — liste triée par nom, création, édition (détails + éditeur d’ingrédients), totaux en direct, toasts FR.
+- Résultats
+  - Build OK; tests manuels: création/édition/suppression recette et ingrédients, recalcul totaux/per‑portion OK; garde‑fous quantités > 0 et portions ≥ 1.
+- Commits associés
+  - `feat(recettes): schema + RLS + data layer (recipes + items)`
+  - `feat(recettes): UI liste + éditeur ingrédients + totaux`
+
 ---
 
 Notes transverses
