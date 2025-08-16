@@ -1,6 +1,33 @@
 # Mémoire du projet — NutriSanté+
 
-Ce document récapitule toutes les étapes du projet (0 à 15) avec objectifs, actions, résultats et messages de commit associés quand connus. Il sert de référence pour la suite.
+Ce document récapitule toutes les étapes du projet (0 à 18) avec objectifs, actions, résultats et messages de commit associés quand connus. Il sert de référence pour la suite.
+
+## Synthèse d’avancement — Étapes 17–18
+
+### Étape 17 — Aliments v2: recherche, filtres, tri, pagination, URL sync
+- Objectifs
+  - Enrichir `/aliments` avec recherche (ILIKE), filtres min/max (kcal/prot/gluc/lip), tri, pagination, synchronisation URL.
+- Actions
+  - Data: `listAlimentsPaged(params)` (ILIKE, `.gte/.lte`, `order` premier tri, `range`, `count:'exact'`), types associés et hook `useAlimentsPaged` (React Query v5, placeholderData).
+  - UI: recherche (debounce 300 ms), filtres, tri par colonne, `pageSize` 10/20/50, pagination, états vides, URL sync de tous les paramètres.
+- Résultats
+  - Build OK; tests manuels: recherche/tri/filtres/pagination et CRUD sous critères fonctionnels.
+- Commits
+  - `feat(aliments): data layer with search/filters/sort/pagination (paged list)`
+  - `feat(aliments): UI search/filters/sort + URL sync + pagination`
+
+### Étape 18 — Recettes (SQL + Data + UI)
+- Objectifs
+  - Définir recettes + ingrédients (RLS par utilisateur), exposer la data avec hooks, fournir l’UI `/recettes` (liste + éditeur ingrédients + totaux/per‑portion).
+- Actions
+  - SQL idempotent: tables `recipes`, `recipe_items`, indexes, triggers `updated_at`, RLS (select/insert/update/delete) restreint à `auth.uid()`.
+  - Data layer: `listRecipes()` (join `items:recipe_items(*, aliment:aliments(*))`), mutations recette et ingrédients, `computeRecipeTotals()`; hooks `useRecipes` + mutations avec invalidation `['recipes']`.
+  - UI: `src/pages/Recettes.tsx` — liste triée par nom, création/édition (zod + RHF), éditeur ingrédients (select aliment, qté, suppression), totaux en direct, toasts FR, garde‑fous.
+- Résultats
+  - Build OK; vérifications manuelles: création/édition/suppression recettes et ingrédients, recalcul totaux/per‑portion; validations qté > 0 et portions ≥ 1 OK.
+- Commits
+  - `feat(recettes): schema + RLS + data layer (recipes + items)`
+  - `feat(recettes): UI liste + éditeur ingrédients + totaux`
 
 ## Étape 0 — Plan de travail et garde‑fous
 - Objectifs

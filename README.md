@@ -2,6 +2,33 @@
 
 Application Vite + React + TypeScript + Tailwind + shadcn/ui.
 
+## Synthèse d’avancement — Étapes 17–18
+
+### Étape 17 — Aliments v2: recherche, filtres, tri, pagination, URL sync
+- Objectifs
+	- Enrichir `/aliments` avec recherche (ILIKE), filtres min/max (kcal/prot/gluc/lip), tri, pagination, et synchronisation URL.
+- Actions
+	- Data layer: `listAlimentsPaged(params)` avec `count:'exact'`, ILIKE, `.gte/.lte`, `order` (premier tri), `range` + recadrage page; hooks React Query (`useAlimentsPaged`).
+	- UI: barre d’outils (recherche debounce 300 ms, filtres min/max, tri par colonne), `pageSize` 10/20/50, pagination, états vides, URL sync.
+- Résultats
+	- Build/TS OK; smoke tests: recherche, tri kcal desc, filtres min, pagination, CRUD sous critères.
+- Commits
+	- `feat(aliments): data layer with search/filters/sort/pagination (paged list)`
+	- `feat(aliments): UI search/filters/sort + URL sync + pagination`
+
+### Étape 18 — Recettes (SQL + Data + UI)
+- Objectifs
+	- Modéliser recettes et ingrédients avec RLS; fournir data layer + hooks; réaliser l’UI `/recettes` (liste + éditeur ingrédients + totaux/per‑portion).
+- Actions
+	- SQL idempotent: tables `recipes`, `recipe_items`, indexes, triggers `updated_at`, RLS par utilisateur.
+	- Data: `listRecipes()` (join items + aliments), mutations recette et ingrédients, `computeRecipeTotals()`; hooks React Query avec invalidation `['recipes']`.
+	- UI: liste triée par nom, création/édition, gestion d’ingrédients, totaux et par portion en direct, toasts FR.
+- Résultats
+	- Build/TS OK; tests manuels: création/édition/suppression recettes et ingrédients OK; garde‑fous quantités > 0, portions ≥ 1.
+- Commits
+	- `feat(recettes): schema + RLS + data layer (recipes + items)`
+	- `feat(recettes): UI liste + éditeur ingrédients + totaux`
+
 ## Configuration locale
 
 1) Variables d’environnement (`.env.local`) — voir `.env.example`:
@@ -333,4 +360,4 @@ Contraintes et RLS
 
 ## Mémoire du projet
 
-L’historique complet des étapes (0 → 15) est disponible dans [docs/memoire-projet.md](./docs/memoire-projet.md).
+ L’historique complet des étapes (0 → 18) est disponible dans [docs/memoire-projet.md](./docs/memoire-projet.md).
