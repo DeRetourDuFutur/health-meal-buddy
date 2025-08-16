@@ -29,6 +29,45 @@ Ce document récapitule toutes les étapes du projet (0 à 18) avec objectifs, a
   - `feat(recettes): schema + RLS + data layer (recipes + items)`
   - `feat(recettes): UI liste + éditeur ingrédients + totaux`
 
+  ## Étape 19 — Profils/Admin (SQL) + Data + UI
+
+  ### Objectifs
+  - 19.A — Schéma profils étendus + RLS + vérification outillée.
+  - 19.B — Couche data robuste (écarts `user_id` vs `id`, colonnes optionnelles), gestion avatar privé, pathologies, historique.
+  - 19.C — UI `/profil` complète avec avatar, infos, pathologies, confidentialité, confirmations et toasts.
+
+  ### Actions
+  - SQL & Storage
+    - `scripts/sql_verify_step19A.sql`: vérifie triggers (`profiles`, `user_pathologies`), RLS sur 4 tables, policies user/admin, fonctions support, index unique `profiles_login_lower_uniq` (incluant `lower(login)`), colonne BMI générée, et produit un résumé booléen.
+    - `scripts/sql_storage_avatars_setup.sql`: crée le bucket privé `avatars` si absent et ajoute une policy idempotente « avatars users can manage own folder » (gestion par sous‑dossier `<uid>/`).
+  - Data (`src/lib/db/profiles.ts`)
+    - `getMyProfile()`: `select(*)` + stratégie user_id→id, mappage dynamique (BMI/colonnes optionnelles).
+    - `upsertMyProfile()`: update‑first puis insert; login de secours sur insert pour satisfaire NOT NULL/UNIQUE; nettoyage de colonnes inexistantes.
+    - `updateAvatar()`: upload privé (contentType) + mise à jour/insert `avatar_url`; tolérance à l’absence de colonne `avatar_url`.
+    - Pathologies: `listPathologies`, `listMyPathologies`, `addMyPathology`, `removeMyPathology`.
+    - Historique: `listMyProfileHistory(limit)` avec ordre `changed_at` puis `created_at` en repli.
+    - Disponibilité login: `isLoginAvailable()` priorise `user_id`, retourne vrai si la colonne `login` est absente.
+  - Hooks (`src/hooks/useProfile.ts`)
+    - `useMyProfile`, `useUpsertMyProfile`, `usePathologies`, `useMyPathologies` (+ add/remove), `useMyProfileHistory`, `useUpdateAvatar`, helpers `getAvatarUrlOrNull`, `checkLoginAvailable`.
+  - UI (`src/pages/Profil.tsx`)
+    - Compte: email, id, date de création.
+    - Avatar: téléversement, URL signée immédiate, rafraîchissement différé pour stabilité.
+    - Formulaire: `login`, `full_name`, `birthdate`, `height_cm`, `weight_kg`, `is_private`; IMC affiché si présent; vérification login au blur.
+    - Pathologies: badges des sélectionnés + liste multi‑sélection (checkbox).
+    - Dialogue de confirmation avant sauvegarde; toasts harmonisés; bandeau d’erreur si chargement profil en échec.
+  - Router
+    - Activation des flags future pour éliminer les warnings v7: `{ v7_startTransition, v7_relativeSplatPath }`.
+
+  ### Résultats
+  - Application `/profil` opérationnelle, sans warnings; gestion des avatars privée OK.
+  - Corrections: 400 GET sur `profiles` (sélection de colonnes), 400 upload (bucket/policy manquants), 406 après update (sélection supprimée), disparition temporaire avatar (URL signée immédiate), NOT NULL `login` (fallback), warnings React Router v7.
+
+  ### Commits associés
+  - `chore(sql): ajouter scripts Step 19.A (vérification) et storage avatars (bucket + policy)`
+  - `feat(profile,data): module profils + hooks (Step 19.B) avec schéma robuste (user_id/id), avatar et pathologies`
+  - `feat(profile,ui): page Profil complète (Step 19.C) avec avatar, pathologies, confidentialité et confirmation`
+  - `fix(router): supprimer les warnings v7 via BrowserRouter.future (v7_startTransition, v7_relativeSplatPath)`
+
 ## Étape 0 — Plan de travail et garde‑fous
 - Objectifs
   - Définir un déroulé pas‑à‑pas avec validations à chaque étape.

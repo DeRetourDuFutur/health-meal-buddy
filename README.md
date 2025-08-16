@@ -29,6 +29,46 @@ Application Vite + React + TypeScript + Tailwind + shadcn/ui.
 	- `feat(recettes): schema + RLS + data layer (recipes + items)`
 	- `feat(recettes): UI liste + éditeur ingrédients + totaux`
 
+	## Étape 19 — Profils/Admin (SQL) + Data + UI
+
+	### Objectifs
+	- 19.A (DB/Admin): mettre en place un schéma « profils étendus » et outillage de vérification.
+	- 19.B (Data): exposer une couche d’accès robuste et tolérante aux différences de schéma (`user_id` vs `id`), avec gestion d’avatar privé et pathologies.
+	- 19.C (UI): réaliser la page `/profil` complète (avatar, informations, pathologies, confidentialité) avec UX fiable.
+
+	### Actions
+	- SQL/Policies/Storage
+		- Ajout d’un script de vérification idempotent: `scripts/sql_verify_step19A.sql` qui contrôle:
+			- Triggers attendus (`profiles`, `user_pathologies`), RLS activée (4 tables), policies user/admin, fonctions support, index unique `lower(login)`, colonne BMI générée, et un résumé booléen final (TRUE/FALSE).
+		- Ajout d’un script de stockage idempotent: `scripts/sql_storage_avatars_setup.sql` qui crée le bucket privé `avatars` s’il manque et une policy « avatars users can manage own folder » permettant à chaque utilisateur de gérer son dossier (`<uid>/…`).
+		- Remarque: exécuter ces scripts dans l’éditeur SQL Supabase.
+	- Data (`src/lib/db/profiles.ts`, `src/hooks/useProfile.ts`)
+		- `getMyProfile()`: `select(*)` + tentative par `user_id` puis repli sur `id` pour éviter les 400 liés aux colonnes manquantes; mappage dynamique des colonnes (BMI optionnelle).
+		- `upsertMyProfile(input)`: stratégie update‑first puis insert; en insert, injecte un login de secours dérivé de l’email/uid pour éviter la contrainte NOT NULL/UNIQUE; supprime à la volée les colonnes inexistantes si besoin.
+		- `updateAvatar(file)`: upload privé dans `avatars` (contentType, upsert), puis mise à jour/insert du profil avec `avatar_url` (clé `user_id` prioritaire, repli `id`), tout en tolérant l’absence éventuelle de colonne `avatar_url`.
+		- Pathologies: `listPathologies`, `listMyPathologies`, `addMyPathology`, `removeMyPathology`; historique: `listMyProfileHistory` (ordre par `changed_at` puis repli `created_at`).
+		- `isLoginAvailable(login)`: vérifie disponibilité (insensible à la casse), priorise `user_id` pour éviter les 400, considère « disponible » si la colonne `login` n’existe pas.
+		- Hooks React Query v5: requêtes/mutations + invalidations ciblées.
+	- UI (`src/pages/Profil.tsx`)
+		- Bloc Compte (email, id, date de création) + bandeau d’erreur si chargement profil échoue.
+		- Avatar: téléversement, URL signée immédiate pour affichage persistant, petit rafraîchissement différé.
+		- Formulaire contrôlé: `login`, `full_name`, `birthdate`, `height_cm`, `weight_kg`, switch `is_private`; IMC affiché en lecture seule si dispo; vérif de disponibilité du login au blur.
+		- Pathologies: badges des pathologies sélectionnées + liste avec cases à cocher pour ajouter/retirer.
+		- Confirmation avant enregistrement et toasts FR cohérents.
+	- Router
+		- Suppression des warnings v7 en activant `BrowserRouter` future flags `{ v7_startTransition, v7_relativeSplatPath }`.
+
+	### Résultats
+	- Build/TS OK; UI `/profil` fonctionnelle de bout en bout.
+	- Erreurs résolues: 400 sur `GET /profiles` (colonnes manquantes), 400 upload avatar (bucket/policy), 406 après `update` (sélection supprimée), disparition temporaire de l’avatar (URL signée immédiate), contrainte `login NOT NULL` (login de secours), warnings React Router v7.
+	- Stockage: bucket `avatars` garanti + policy par dossier utilisateur.
+
+	### Commits
+	- `chore(sql): ajouter scripts Step 19.A (vérification) et storage avatars (bucket + policy)`
+	- `feat(profile,data): module profils + hooks (Step 19.B) avec schéma robuste (user_id/id), avatar et pathologies`
+	- `feat(profile,ui): page Profil complète (Step 19.C) avec avatar, pathologies, confidentialité et confirmation`
+	- `fix(router): supprimer les warnings v7 via BrowserRouter.future (v7_startTransition, v7_relativeSplatPath)`
+
 ## Configuration locale
 
 1) Variables d’environnement (`.env.local`) — voir `.env.example`:
