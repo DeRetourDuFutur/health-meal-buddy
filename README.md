@@ -172,6 +172,36 @@ Remarques RLS:
 - Chaque requête est filtrée par `auth.uid()` via les politiques; une clé publique (anon) suffit côté client.
 - Si vous voyez des 401/403, vérifiez que vous êtes connecté et que RLS est bien activé avec ces politiques.
 
+## Aliments — recherche/tri/pagination (Étape 17)
+
+Paramètres et défauts (synchronisés dans l’URL):
+- q?: string — recherche insensible à la casse via ILIKE sur `name` (debounce 300 ms)
+- filters?: `{ kcalMin?, kcalMax?, protMin?, protMax?, carbMin?, carbMax?, fatMin?, fatMax? }`
+	- Mapping colonnes: kcal → `kcal_per_100g`, prot → `protein_g_per_100g`, carb → `carbs_g_per_100g`, fat → `fat_g_per_100g`
+	- Si `min > max`: contrainte ignorée (aucune erreur bloquante)
+- sort?: `{ by: "name"|"kcal"|"prot"|"carb"|"fat"; dir: "asc"|"desc" }[]`
+	- Pour le MVP, seul le premier tri est appliqué
+	- Encodage URL: `name:asc`, `kcal:desc`, etc.
+- page?: number — défaut 1; page recadrée si hors bornes
+- pageSize?: number — défaut 10; options 10/20/50
+
+Défauts globaux:
+- `q=""`, pas de filtres, `sort=[{ by:"name", dir:"asc" }]`, `page=1`, `pageSize=10`
+
+Sortie de l’API client:
+- `{ items, total, page, pageSize, pageCount }` (avec `count: 'exact'`)
+
+Exemples d’URL partageables:
+- `/aliments?q=pom`
+- `/aliments?sort=kcal:desc&page=2&pageSize=20`
+- `/aliments?kcalMin=50&protMin=5&sort=name:asc`
+
+Notes
+- Debounce 300 ms sur la recherche.
+- Un seul critère de tri géré (le premier); futurs tris multiples possibles sans casse.
+- Pagination basée sur `count: 'exact'`, recadrage automatique de `page`.
+- RLS et contrainte UNIQUE(user_id, name) inchangés; aucun index SQL ajouté dans cette étape.
+
 ## Mémoire du projet
 
 L’historique complet des étapes (0 → 15) est disponible dans [docs/memoire-projet.md](./docs/memoire-projet.md).

@@ -113,6 +113,22 @@ Ce document récapitule toutes les étapes du projet (0 à 15) avec objectifs, a
 - Commit associé
   - `feat(profile): editable display name, theme selection with persistence, and UI updates`
 
+  ## Étape 17 — Aliments v2: recherche, filtres, tri, pagination, URL sync
+  - Objectifs
+    - Enrichir la page `/aliments` avec recherche (ILIKE), filtres min/max (kcal/prot/gluc/lip), tri, pagination, et synchronisation URL.
+    - Préserver le CRUD existant et la compatibilité.
+  - Actions
+    - Data layer: `listAlimentsPaged(params)` (select `*` + `count:'exact'`, ILIKE, `.gte/.lte`, `order` (premier tri), `range` + recadrage page).
+    - Types: `AlimentsFilters`, `AlimentsSort(By)`, `AlimentsQueryParams`, `AlimentsPagedResult`.
+    - Hook: `useAlimentsPaged(params)` avec `queryKey=['aliments', params]` et `placeholderData: keepPreviousData` (React Query v5).
+    - UI: barre d’outils (recherche debounce 300 ms, filtres min/max, tri par colonne), sélecteur `pageSize` (10/20/50), pagination Précédent/Suivant, états “Aucun résultat”/“Aucun aliment”.
+    - URL sync: `q`, `kcalMin/kcalMax`, `protMin/protMax`, `carbMin/carbMax`, `fatMin/fatMax`, `sort`, `page`, `pageSize`.
+  - Résultats
+    - Build TS/Dev: PASS. Smoke tests: recherche "pom", tri kcal desc, filtres min, pagination 1→2, CRUD sous critères.
+  - Commits
+    - `feat(aliments): data layer with search/filters/sort/pagination (paged list)`
+    - `feat(aliments): UI search/filters/sort + URL sync + pagination`
+
 ---
 
 Notes transverses
