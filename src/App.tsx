@@ -31,7 +31,7 @@ const App = () => (
       <Sonner />
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>
-          <BrowserRouter>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <PathNormalizer />
             <Routes>
           <Route path="/" element={<Index />} />
