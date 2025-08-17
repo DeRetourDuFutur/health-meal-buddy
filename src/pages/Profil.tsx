@@ -32,7 +32,6 @@ import {
   useAdminDeleteDefaultPathology,
   useAdminDeleteCustomPathology,
   computeBmi,
-  bmiLabel,
 } from "@/hooks/useProfile";
 import type { ProfileInput } from "@/lib/db/profiles";
 import { profileInputSchema } from "@/lib/db/profiles";
@@ -317,36 +316,6 @@ const Profil = () => {
                           </span>
                         </div>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                      {/* first_name */}
-                      <FormField
-                        control={form.control}
-                        name="first_name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Prénom</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Ex: Marie" value={field.value ?? ""} onChange={field.onChange} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      {/* last_name */}
-                      <FormField
-                        control={form.control}
-                        name="last_name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nom</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Ex: DUPONT" value={(field.value ?? "").toString().toUpperCase()} onChange={(e) => field.onChange(e.target.value)} />
-                            </FormControl>
-                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -381,7 +350,7 @@ const Profil = () => {
                     )}
                   />
 
-                  {/* weight + BMI inline */}
+                  {/* weight */}
                   <FormField
                     control={form.control}
                     name="weight_kg"
@@ -391,12 +360,20 @@ const Profil = () => {
                         <FormControl>
                           <div className="flex items-center gap-2">
                             <Input className="w-40" type="number" inputMode="decimal" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
-                            <span className="text-xs text-muted-foreground">
-                              {(() => {
-                                const v = computeBmi(form.getValues("height_cm"), field.value);
-                                return bmiLabel(v);
-                              })()}
-                            </span>
+                            {(() => {
+                              const v = computeBmi(form.getValues("height_cm"), form.getValues("weight_kg"));
+                              if (v == null) return <span className="text-xs text-muted-foreground">—</span>;
+                              const cls = v < 18.5
+                                ? "bg-slate-500 text-white"
+                                : v < 25
+                                  ? "bg-emerald-600 text-white"
+                                  : v < 30
+                                    ? "bg-orange-500 text-white"
+                                    : "bg-red-600 text-white";
+                              return (
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{v.toFixed(1)}</span>
+                              );
+                            })()}
                           </div>
                         </FormControl>
                         <FormMessage />
