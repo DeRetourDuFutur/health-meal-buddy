@@ -319,6 +319,36 @@ const Profil = () => {
                           </FormItem>
                         )}
                       />
+                      
+                  {/* first_name */}
+                  <FormField
+                    control={form.control}
+                    name="first_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Prénom</FormLabel>
+                        <FormControl>
+                          <Input value={field.value ?? ""} onChange={field.onChange} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* last_name */}
+                  <FormField
+                    control={form.control}
+                    name="last_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>NOM</FormLabel>
+                        <FormControl>
+                          <Input value={field.value ?? ""} onChange={field.onChange} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                       {/* age */}
                       <FormField
@@ -459,28 +489,36 @@ const Profil = () => {
                     )}
                   />
 
-                  {/* Confidentialité par champ */}
+                  {/* Confidentialité par champ (icônes cadenas) */}
                   <div className="col-span-full rounded-md border p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <div className="font-medium">Confidentialité</div>
-                        <div className="text-xs text-muted-foreground">Choisissez les champs à masquer aux autres.</div>
+                        <div className="text-xs text-muted-foreground">Cadenas vert = public, rouge = privé.</div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      {(["age", "height_cm", "weight_kg"] as const).map((k) => (
-                        <label key={k} className="flex items-center justify-between gap-2 border rounded-md px-3 py-2">
-                          <span className="text-sm">{k === "age" ? "Âge" : k === "height_cm" ? "Taille" : "Poids"}</span>
-                          <Switch
-                            checked={!!(form.getValues("privacy") as any)?.[k]}
-                            onCheckedChange={(v) => {
-                              const priv = { ...(form.getValues("privacy") || {}) } as Record<string, boolean>;
-                              if (v) priv[k] = true; else delete priv[k];
-                              form.setValue("privacy", priv, { shouldDirty: true });
-                            }}
-                          />
-                        </label>
-                      ))}
+                      {(["age", "height_cm", "weight_kg"] as const).map((k) => {
+                        const isPrivate = !!(form.getValues("privacy") as any)?.[k];
+                        return (
+                          <div key={k} className="flex items-center justify-between gap-2 border rounded-md px-3 py-2">
+                            <span className="text-sm">{k === "age" ? "Âge" : k === "height_cm" ? "Taille" : "Poids"}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className={`h-8 w-8 p-0 rounded-full ${isPrivate ? "bg-red-600 hover:bg-red-500" : "bg-emerald-600 hover:bg-emerald-500"} text-white`}
+                              onClick={() => {
+                                const priv = { ...(form.getValues("privacy") || {}) } as Record<string, boolean>;
+                                if (isPrivate) delete priv[k]; else priv[k] = true;
+                                form.setValue("privacy", priv, { shouldDirty: true });
+                              }}
+                              title={isPrivate ? "Privé" : "Public"}
+                            >
+                              {isPrivate ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -604,7 +642,7 @@ const Profil = () => {
                     const lbl = (c.label || "").toLowerCase();
                     const isPromoted = (code && selectedDefaultCodes.has(code)) || (!code && selectedDefaultLabels.has(lbl));
                     return (
-          <label key={`c-${c.id}`} className="flex items-center justify-between gap-3 rounded-md border border-emerald-900/60 bg-emerald-950/30 px-3 py-2">
+          <label key={`c-${c.id}`} className={`flex items-center justify-between gap-3 rounded-md border border-emerald-900/60 bg-emerald-950/30 px-3 py-2 ${c.is_hidden ? "opacity-50" : ""}`}>
                       <div className="flex items-center gap-2">
                         <Checkbox
                           checked={!c.is_hidden}
@@ -622,6 +660,7 @@ const Profil = () => {
                           {c.label}
                           {c.code ? <span className="ml-2 text-xs text-emerald-300">({c.code})</span> : null}
                         </span>
+                        <span className={`ml-2 text-xs ${c.is_hidden ? "text-emerald-300/60" : "text-emerald-300"}`}>{c.is_hidden ? "Inactif" : "Actif"}</span>
                       </div>
             {user?.user_metadata?.role === "admin" ? (
               <div className="ml-auto flex items-center gap-2">
