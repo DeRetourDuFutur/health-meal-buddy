@@ -1,6 +1,6 @@
 # Mémoire du projet — NutriSanté+
 
-Ce document récapitule toutes les étapes du projet (0 à 18) avec objectifs, actions, résultats et messages de commit associés quand connus. Il sert de référence pour la suite.
+Ce document récapitule toutes les étapes du projet (0 → 19.2) avec objectifs, actions, résultats et messages de commit associés quand connus. Il sert de référence pour la suite.
 
 ## Synthèse d’avancement — Étapes 17–18
 
@@ -58,6 +58,48 @@ Commits (sélection)
 - `feat(profile/data): optimistic deletes + RLS‑aware RPC fallback (delete_pathology)`
 - `fix(profile/ui): Select controlled value and JSX fixes`
 - `feat(profile/ui): BMI badge inline next to weight`
+
+## Étape 19.D — Pathologies personnelles (amendements)
+
+Objectifs
+- Supprimer le fallback localStorage pour `is_hidden` et s’appuyer uniquement sur la colonne DB.
+- Réactiver (plutôt que dupliquer) une pathologie personnelle lors d’un ajout dont le label correspond (ilike).
+- Clarifier l’UI: état Actif/Inactif, grisé des entrées inactives; afficher Prénom/NOM (NOM en uppercase visuelle); cadenas rouge/vert pour confidentialité.
+
+Actions
+- Data (`src/lib/db/profiles.ts`)
+  - Retrait du fallback localStorage; `setMyCustomPathologyHidden` agit uniquement en DB.
+  - `addMyCustomPathology`: vérifie l’existence via `.ilike(label)`, réactive si `is_hidden=true`, sinon insère.
+- Hooks (`src/hooks/useProfile.ts`)
+  - Compatibles sans changement d’API; invalidations conservées.
+- UI (`src/pages/Profil.tsx`)
+  - Affichage Actif/Inactif; style grisé si inactif; icônes cadenas rouge/vert.
+  - Champs Prénom/NOM exposés; IMC clarifié.
+
+Commits
+- `feat(profile/ui): prénom/NOM, privacy par cadenas, perso inactives grisées avec état Actif/Inactif`
+- `feat(profile/data): réactivation à l’ajout (ilike) des pathologies perso`
+- `refactor(profile/data): suppression du fallback localStorage pour is_hidden (colonne en DB)`
+
+## Étape 19.2 — Profil (ajustements UI finaux avant Étape 20)
+
+Objectifs
+- Optimiser la lisibilité, la compacité et l’ergonomie du Profil sans toucher à la data.
+
+Actions
+- Masque le champ « Identifiant / login » (affichage uniquement; logique conservée).
+- Grilles responsives:
+  - Prénom/NOM côte à côte (md:2 colonnes), NOM en uppercase (CSS).
+  - Âge/Taille/Poids/IMC sur une ligne (md:2, lg:4 colonnes).
+  - Besoins (kcal/j) + Affichage objectifs (md:2 colonnes).
+  - Protéines/Glucides/Lipides (md:3 colonnes).
+- IMC: Input compact (lecture seule) + pastille colorée avec libellé (« Sous‑poids », « Normal », « Surpoids », « Obèse »).
+- En‑tête: cartes « Compte » (2/3) et « Avatar » (1/3) alignées sur une ligne (md+).
+- Avatar: boutons icon‑only (Upload, Trash) + HoverCard d’aperçu agrandi au survol.
+- Confidentialité: section masquée en UI (fonctionnalité conservée en data/sauvegarde).
+
+Commit
+- `feat(profile/ui): ajustements Profil (grilles, IMC, avatar, confidentialité UI)`
 
   ## Étape 19 — Profils/Admin (SQL) + Data + UI
 

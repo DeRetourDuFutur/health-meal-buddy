@@ -4,20 +4,13 @@ Application Vite + React + TypeScript + Tailwind + shadcn/ui.
 
 ## TODO (prochaines étapes)
 
-- 19.D — Pathologies personnelles (amendement)
-	- Ajouter des tooltips sur les icônes d’actions admin (rendre public/privé, supprimer).
-	- Toast d’observabilité quand le fallback RPC est utilisé (admin‑only).
-	- Édition/renommage d’une pathologie personnelle et saisie/normalisation du code (2 caractères), anti‑doublons avec les défauts.
-	- Migration/garantie de la colonne `is_hidden` côté DB et retrait progressif du fallback localStorage.
-	- Petites vérifs automatiques: tests unitaires de promotion/déclassement et du toggle visibilité.
-
 - 20.x — Roadmap (à préciser)
 	- 20.1 — Suivi médical v1: base SQL+RLS, hooks, UI de saisie (poids/IMC/notes) et mini‑stats.
 	- 20.2 — Planification repas v2: amélioration UX, liens recettes→planning, ajustements portions.
 	- 20.3 — Liste de courses v1: agrégation par semaine, export simple.
 	- 20.4 — Statistiques v1: premiers graphiques (apports/j, macros, tendance IMC).
 
-## Synthèse d’avancement — Étapes 17–18
+## Synthèse d’avancement — Étapes 17–19.2
 
 ### Étape 17 — Aliments v2: recherche, filtres, tri, pagination, URL sync
 - Objectifs
@@ -141,6 +134,39 @@ Notes
 - Poubelle rouge: Supprimer
 
 Taille: pastille 32×32, icône 16×16, alignées à droite.
+
+### Étape 19.D — Pathologies personnelles (amendements)
+
+- Objectifs
+	- Conserver `is_hidden` en base et supprimer le fallback localStorage.
+	- Réactiver une pathologie personnelle existante lors d’un ajout si le label (ilike) correspond.
+	- Clarifier l’UI: afficher l’état Actif/Inactif et griser les entrées inactives.
+	- Exposer Prénom/NOM (NOM en uppercase visuelle) et utiliser des cadenas rouge/vert pour la confidentialité.
+- Actions
+	- Data: suppression du fallback localStorage; ajout d’une recherche case‑insensitive avant insert, réactivation si trouvée; mise à jour directe d’`is_hidden`.
+	- UI: état Actif/Inactif avec grisé, cadenas privacy (rouge=privé, vert=public), champs Prénom/NOM visibles, IMC clarifié.
+- Commits
+	- `feat(profile/ui): prénom/NOM, privacy par cadenas, perso inactives grisées avec état Actif/Inactif`
+	- `feat(profile/data): réactivation à l’ajout (ilike) des pathologies perso`
+	- `refactor(profile/data): suppression du fallback localStorage pour is_hidden (colonne en DB)`
+
+### Étape 19.2 — Profil (ajustements UI finaux avant Étape 20)
+
+- Objectifs
+	- Optimiser la lisibilité/hauteur et l’ergonomie du Profil sans toucher à la data.
+- Actions UI
+	- Masquer le champ « Identifiant / login » (UI uniquement).
+	- Grilles responsives:
+		- Prénom et NOM sur une ligne (md:2 colonnes), NOM rendu en uppercase (visuel seulement).
+		- Âge, Taille (cm), Poids (kg), IMC sur une ligne (md:2, lg:4 colonnes).
+		- Besoins (kcal/j) et Affichage objectifs sur une ligne (md:2 colonnes).
+		- Protéines/Glucides/Lipides sur une ligne (md:3 colonnes).
+	- IMC: champ compact en lecture seule + pastille colorée avec libellé (« Sous‑poids », « Normal », « Surpoids », « Obèse »).
+	- En‑tête: cartes « Compte » (2/3) et « Avatar » (1/3) alignées sur une même ligne en desktop.
+	- Avatar: boutons remplacés par des icônes (Upload, Trash) et aperçu agrandi au survol (HoverCard).
+	- Confidentialité: section masquée en UI (fonctionnalité conservée en back).
+- Commit
+	- `feat(profile/ui): ajustements Profil (grilles, IMC, avatar, confidentialité UI)`
 
 ## Configuration locale
 
