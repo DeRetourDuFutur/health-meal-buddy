@@ -2,6 +2,10 @@
 
 Application Vite + React + TypeScript + Tailwind + shadcn/ui.
 
+## Cahier des charges (CDC)
+
+Le cahier des charges complet est disponible dans docs/CDC.md.
+
 ## TODO (prochaines étapes)
 
 - 20.x — Roadmap (à préciser)
