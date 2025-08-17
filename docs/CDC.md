@@ -202,6 +202,8 @@ Contact: confier ce CDC au dev référent avant itération; les sections 8–9 d
 
 ## 14. Schéma SQL consolidé (DDL global — exemple à adapter)
 
+Fichier exécutable: `scripts/schema.sql` (export consolidé et idempotent).
+
 Note: Ce DDL est idempotent et peut être adapté aux écarts éventuels de schéma existant. Les politiques RLS supposent l’usage de `auth.uid()`.
 
 ```sql
@@ -440,6 +442,8 @@ revoke all on function public.delete_pathology(uuid) from public;
 ```
 
 ## 15. ERD (diagramme entités‑relations) — simplifié
+
+Rendu image: `docs/erd.svg` (pour relectures sans Mermaid).
 
 ```mermaid
 erDiagram

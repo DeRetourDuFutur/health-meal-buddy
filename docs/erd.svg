@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Inter, Arial, Helvetica, sans-serif" font-size="12">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#555" />
+    </marker>
+    <style><![CDATA[
+      .box { fill: #fafafa; stroke: #999; stroke-width: 1.2; rx: 6; ry: 6; }
+      .title { font-weight: 600; fill: #111; }
+      .field { fill: #333; }
+      .pk { fill: #0b7285; font-weight: 600; }
+      .fk { fill: #5c940d; }
+      .edge { stroke: #555; stroke-width: 1.2; fill: none; marker-end: url(#arrow); }
+      .card { fill: #555; font-size: 11px; }
+    ]]></style>
+  </defs>
+
+  <!-- USERS -->
+  <rect class="box" x="720" y="40" width="160" height="70" />
+  <text class="title" x="800" y="60" text-anchor="middle">USERS (auth.users)</text>
+  <text class="field pk" x="800" y="85" text-anchor="middle">id (uuid, PK)</text>
+
+  <!-- PROFILES -->
+  <rect class="box" x="700" y="160" width="200" height="170" />
+  <text class="title" x="800" y="180" text-anchor="middle">PROFILES</text>
+  <text class="field pk" x="710" y="205">user_id (uuid, PK, FK→users.id)</text>
+  <text class="field" x="710" y="223">login (text, unique)</text>
+  <text class="field" x="710" y="241">first_name, last_name</text>
+  <text class="field" x="710" y="259">age, height_cm, weight_kg</text>
+  <text class="field" x="710" y="277">needs_kcal, prot/carbs/fat_g</text>
+  <text class="field" x="710" y="295">needs_display_mode</text>
+  <text class="field" x="710" y="313">privacy (jsonb), avatar_url</text>
+
+  <!-- PATHOLOGIES -->
+  <rect class="box" x="120" y="120" width="220" height="110" />
+  <text class="title" x="230" y="140" text-anchor="middle">PATHOLOGIES</text>
+  <text class="field pk" x="130" y="165">id (uuid, PK)</text>
+  <text class="field" x="130" y="183">code (text)</text>
+  <text class="field" x="130" y="201">label (text, not null)</text>
+
+  <!-- USER_PATHOLOGIES -->
+  <rect class="box" x="380" y="260" width="240" height="120" />
+  <text class="title" x="500" y="280" text-anchor="middle">USER_PATHOLOGIES</text>
+  <text class="field pk" x="390" y="305">id (uuid, PK)</text>
+  <text class="field fk" x="390" y="323">user_id (uuid, FK→users.id)</text>
+  <text class="field fk" x="390" y="341">pathology_id (uuid, FK→pathologies.id)</text>
+
+  <!-- CUSTOM_PATHOLOGIES -->
+  <rect class="box" x="80" y="300" width="260" height="130" />
+  <text class="title" x="210" y="320" text-anchor="middle">CUSTOM_PATHOLOGIES</text>
+  <text class="field pk" x="90" y="345">id (uuid, PK)</text>
+  <text class="field fk" x="90" y="363">user_id (uuid, FK→users.id)</text>
+  <text class="field" x="90" y="381">label (text), code (text)</text>
+  <text class="field" x="90" y="399">is_hidden (bool)</text>
+
+  <!-- ALIMENTS -->
+  <rect class="box" x="1040" y="300" width="240" height="130" />
+  <text class="title" x="1160" y="320" text-anchor="middle">ALIMENTS</text>
+  <text class="field pk" x="1050" y="345">id (uuid, PK)</text>
+  <text class="field fk" x="1050" y="363">user_id (uuid, FK→users.id)</text>
+  <text class="field" x="1050" y="381">name (text, unique per user)</text>
+  <text class="field" x="1050" y="399">kcal/protein/carbs/fat per 100g</text>
+
+  <!-- RECIPES -->
+  <rect class="box" x="760" y="380" width="220" height="120" />
+  <text class="title" x="870" y="400" text-anchor="middle">RECIPES</text>
+  <text class="field pk" x="770" y="425">id (uuid, PK)</text>
+  <text class="field fk" x="770" y="443">user_id (uuid, FK→users.id)</text>
+  <text class="field" x="770" y="461">name (text, unique per user)</text>
+  <text class="field" x="770" y="479">servings (numeric), notes</text>
+
+  <!-- RECIPE_ITEMS -->
+  <rect class="box" x="760" y="560" width="280" height="130" />
+  <text class="title" x="900" y="580" text-anchor="middle">RECIPE_ITEMS</text>
+  <text class="field pk" x="770" y="605">id (uuid, PK)</text>
+  <text class="field fk" x="770" y="623">recipe_id (uuid, FK→recipes.id)</text>
+  <text class="field fk" x="770" y="641">aliment_id (uuid, FK→aliments.id)</text>
+  <text class="field" x="770" y="659">quantity_g (numeric)</text>
+
+  <!-- Edges -->
+  <!-- profiles.user_id -> users.id -->
+  <line class="edge" x1="800" y1="160" x2="800" y2="110" />
+  <text class="card" x="805" y="135">1:1</text>
+
+  <!-- user_pathologies.user_id -> users.id -->
+  <line class="edge" x1="500" y1="260" x2="800" y2="110" />
+  <text class="card" x="620" y="180">N:1</text>
+
+  <!-- user_pathologies.pathology_id -> pathologies.id -->
+  <line class="edge" x1="500" y1="260" x2="340" y2="230" />
+  <text class="card" x="430" y="240">N:1</text>
+
+  <!-- custom_pathologies.user_id -> users.id -->
+  <line class="edge" x1="210" y1="300" x2="800" y2="110" />
+  <text class="card" x="440" y="205">N:1</text>
+
+  <!-- aliments.user_id -> users.id -->
+  <line class="edge" x1="1160" y1="300" x2="800" y2="110" />
+  <text class="card" x="980" y="200">N:1</text>
+
+  <!-- recipes.user_id -> users.id -->
+  <line class="edge" x1="870" y1="380" x2="800" y2="110" />
+  <text class="card" x="830" y="255">N:1</text>
+
+  <!-- recipe_items.recipe_id -> recipes.id -->
+  <line class="edge" x1="900" y1="560" x2="870" y2="500" />
+  <text class="card" x="890" y="525">N:1</text>
+
+  <!-- recipe_items.aliment_id -> aliments.id -->
+  <line class="edge" x1="900" y1="560" x2="1160" y2="430" />
+  <text class="card" x="1030" y="495">N:1</text>
+
+  <!-- Legend -->
+  <rect class="box" x="1220" y="60" width="320" height="120" />
+  <text class="title" x="1380" y="80" text-anchor="middle">Légende</text>
+  <circle cx="1240" cy="100" r="5" fill="#0b7285" /><text x="1252" y="104">PK (clé primaire)</text>
+  <circle cx="1240" cy="120" r="5" fill="#5c940d" /><text x="1252" y="124">FK (clé étrangère)</text>
+  <line x1="1230" y1="140" x2="1260" y2="140" class="edge" />
+  <text x="1270" y="144">Relation (flèche vers la table référencée)</text>
+</svg>
