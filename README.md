@@ -69,6 +69,64 @@ Application Vite + React + TypeScript + Tailwind + shadcn/ui.
 	- `feat(profile,ui): page Profil complète (Step 19.C) avec avatar, pathologies, confidentialité et confirmation`
 	- `fix(router): supprimer les warnings v7 via BrowserRouter.future (v7_startTransition, v7_relativeSplatPath)`
 
+### Étape 19.1 — Profil/Admin v2: Pathologies, IMC, icônes, RLS/RPC, UX
+
+- Objectifs
+	- Uniformiser les actions admin (icônes + tailles + alignement), fiabiliser les suppressions sous RLS, clarifier l’IMC.
+- Actions clés
+	- UI Profil (`src/pages/Profil.tsx`)
+		- Boutons admin icône‑seules et cohérents: Rendre public = cadenas bleu ouvert, Rendre privé = cadenas vert fermé, Supprimer = poubelle rouge. Alignés à droite, pastilles 32×32, icônes 16×16.
+		- Déduplication visuelle: si une pathologie « défaut » est sélectionnée, la version « personnelle » identique (code/label) est masquée.
+		- IMC: badge coloré affichant uniquement la valeur, positionné à côté du champ « Poids (kg) ».
+		- Suppression immédiate dans la liste via mise à jour optimiste + rollback en cas d’échec.
+		- Petits correctifs: Select contrôlé pour éviter le warning, structure JSX nettoyée.
+	- Data (`src/hooks/useProfile.ts`, `src/lib/db/profiles.ts`)
+		- Perso: bascule afficher/masquer via `is_hidden` (checkbox). Fallback localStorage si la colonne est absente.
+		- Promotion/déclassement: perso → défaut (« Rendre public ») et défaut → perso (« Rendre privé ») avec validations (codes 2 caractères) et anti‑doublons.
+		- Suppression défaut: `delete … returning` pour détecter l’effet; si RLS bloque (0 ligne), fallback RPC `delete_pathology` côté serveur, puis vérification.
+		- Invalidations ciblées des queries et refetch après mutations.
+- Résultats
+	- Suppressions stables (sans réapparition), actions admin homogènes, IMC lisible, console propre.
+- Commits (exemples)
+	- `feat(profile/ui): admin actions as icon pills (unlock/lock/trash) + right aligned + consistent sizes`
+	- `feat(profile/data): optimistic deletes + RLS‑aware RPC fallback (delete_pathology)`
+	- `fix(profile/ui): Select controlled value and JSX fixes`
+	- `feat(profile/ui): BMI badge inline next to weight`
+
+### Admin — RPC suppression pathologie « défaut » (RLS)
+
+Si la suppression directe d’une pathologie « défaut » est bloquée par RLS côté client, créez une fonction RPC côté serveur et limitez‑la aux administrateurs.
+
+SQL à exécuter dans Supabase (éditeur SQL):
+
+```
+create or replace function public.delete_pathology(p_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+	delete from public.pathologies where id = p_id;
+end;
+$$;
+
+revoke all on function public.delete_pathology(uuid) from public;
+-- Accorder à un rôle admin applicatif, ou invoquer uniquement via service role
+-- grant execute on function public.delete_pathology(uuid) to app_admin;
+```
+
+Notes
+- Le client tente d’abord un `delete … returning`; si 0 ligne affectée (RLS), il bascule sur l’appel RPC.
+- Les hooks appliquent une mise à jour optimiste, annulent en cas d’échec et invalident/refetch pour confirmer l’état.
+
+### Légende des icônes (Profil > Pathologies)
+
+- Cadenas bleu ouvert: Rendre public (perso → défaut)
+- Cadenas vert fermé: Rendre privé (défaut → perso)
+- Poubelle rouge: Supprimer
+
+Taille: pastille 32×32, icône 16×16, alignées à droite.
+
 ## Configuration locale
 
 1) Variables d’environnement (`.env.local`) — voir `.env.example`:

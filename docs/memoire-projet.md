@@ -29,6 +29,36 @@ Ce document récapitule toutes les étapes du projet (0 à 18) avec objectifs, a
   - `feat(recettes): schema + RLS + data layer (recipes + items)`
   - `feat(recettes): UI liste + éditeur ingrédients + totaux`
 
+## Étape 19.1 — Profil/Admin v2 (UX, Pathologies, IMC, RLS/RPC)
+
+Objectifs
+- Unifier les actions d’administration des pathologies (icônes, tailles, alignement).
+- Fiabiliser les suppressions malgré RLS via un fallback RPC.
+- Clarifier l’affichage de l’IMC et corriger les warnings UI.
+
+Actions
+- UI Profil (`src/pages/Profil.tsx`)
+  - Actions admin icône‑seules (Unlock bleu = Rendre public, Lock vert = Rendre privé, Poubelle rouge = Supprimer). Alignées à droite et tailles homogènes (pastille 32px, icône 16px).
+  - Déduplication: la pathologie personnelle identique (code/label) est masquée si l’équivalent « défaut » est sélectionné.
+  - IMC: badge coloré, valeur‑seule, affiché à côté du champ Poids.
+  - Sélecteurs contrôlés (Select) + corrections JSX pour éliminer les warnings.
+- Data (`src/hooks/useProfile.ts`, `src/lib/db/profiles.ts`)
+  - Perso: toggle visible/masqué via `is_hidden` (fallback localStorage si colonne absente).
+  - Promotion/déclassement: perso ↔ défaut avec contrôles (codes 2 chars) et anti‑doublons.
+  - Suppression défaut: tentative `delete … returning`; si aucune ligne (RLS), fallback RPC `delete_pathology` puis vérification.
+  - Caches: mise à jour optimiste, rollback en erreur, invalidation/refetch à l’issue.
+- SQL/RPC
+  - Fonction `public.delete_pathology(p_id uuid)` en SECURITY DEFINER, accès restreint (non accordé à public). Appelée uniquement en fallback admin.
+
+Résultats
+- Les suppressions ne « réapparaissent » plus; l’UI reste cohérente; IMC lisible; aucune alerte de contrôle Select.
+
+Commits (sélection)
+- `feat(profile/ui): admin actions as icon pills (unlock/lock/trash) + right aligned + consistent sizes`
+- `feat(profile/data): optimistic deletes + RLS‑aware RPC fallback (delete_pathology)`
+- `fix(profile/ui): Select controlled value and JSX fixes`
+- `feat(profile/ui): BMI badge inline next to weight`
+
   ## Étape 19 — Profils/Admin (SQL) + Data + UI
 
   ### Objectifs
