@@ -2,6 +2,21 @@
 
 Application Vite + React + TypeScript + Tailwind + shadcn/ui.
 
+## TODO (prochaines étapes)
+
+- 19.D — Pathologies personnelles (amendement)
+	- Ajouter des tooltips sur les icônes d’actions admin (rendre public/privé, supprimer).
+	- Toast d’observabilité quand le fallback RPC est utilisé (admin‑only).
+	- Édition/renommage d’une pathologie personnelle et saisie/normalisation du code (2 caractères), anti‑doublons avec les défauts.
+	- Migration/garantie de la colonne `is_hidden` côté DB et retrait progressif du fallback localStorage.
+	- Petites vérifs automatiques: tests unitaires de promotion/déclassement et du toggle visibilité.
+
+- 20.x — Roadmap (à préciser)
+	- 20.1 — Suivi médical v1: base SQL+RLS, hooks, UI de saisie (poids/IMC/notes) et mini‑stats.
+	- 20.2 — Planification repas v2: amélioration UX, liens recettes→planning, ajustements portions.
+	- 20.3 — Liste de courses v1: agrégation par semaine, export simple.
+	- 20.4 — Statistiques v1: premiers graphiques (apports/j, macros, tendance IMC).
+
 ## Synthèse d’avancement — Étapes 17–18
 
 ### Étape 17 — Aliments v2: recherche, filtres, tri, pagination, URL sync
