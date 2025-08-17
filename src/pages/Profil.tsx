@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
@@ -20,11 +21,22 @@ import {
   useMyPathologies,
   useMyProfileHistory,
   useUpdateAvatar,
+  useDeleteAvatar,
   getAvatarUrlOrNull,
   checkLoginAvailable,
+  useMyCustomPathologies,
+  useAddMyCustomPathology,
+  useToggleMyCustomPathologyHidden,
+  usePromoteCustomPathologies,
+  useDemoteDefaultPathologyToCustom,
+  useAdminDeleteDefaultPathology,
+  useAdminDeleteCustomPathology,
+  computeBmi,
+  bmiLabel,
 } from "@/hooks/useProfile";
 import type { ProfileInput } from "@/lib/db/profiles";
 import { profileInputSchema } from "@/lib/db/profiles";
+import { Lock, Unlock, Trash2 } from "lucide-react";
 
 const Profil = () => {
   const { user } = useAuth();
@@ -35,21 +47,45 @@ const Profil = () => {
   const upsert = useUpsertMyProfile();
   const pathologiesQ = usePathologies();
   const myPathos = useMyPathologies();
+  const myCustom = useMyCustomPathologies();
+  const addCustom = useAddMyCustomPathology();
+  const toggleCustomHidden = useToggleMyCustomPathologyHidden();
+  const promoteCustom = usePromoteCustomPathologies();
+  const demoteDefault = useDemoteDefaultPathologyToCustom();
+  const delDefault = useAdminDeleteDefaultPathology();
+  const delCustom = useAdminDeleteCustomPathology();
+  const [customCode, setCustomCode] = useState("");
+  const sanitizeCode = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 2);
   useMyProfileHistory(10); // prime cache (affichage optionnel)
   const uploadAvatar = useUpdateAvatar();
+  const delAvatar = useDeleteAvatar();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const customInputRef = useRef<HTMLInputElement | null>(null);
+  // Aides: sets pour détection des pathos "défaut" SÉLECTIONNÉS par l'utilisateur
+  const selectedDefaultCodes = useMemo(() => new Set((myPathos.list.data ?? [])
+    .map((up) => (up.pathology?.code || "").toUpperCase())
+    .filter(Boolean)), [myPathos.list.data]);
+  const selectedDefaultLabels = useMemo(() => new Set((myPathos.list.data ?? [])
+    .map((up) => (up.pathology?.label || "").toLowerCase())
+    .filter(Boolean)), [myPathos.list.data]);
+  const showAdmin = user?.user_metadata?.role === "admin";
 
   // Form init
   const form = useForm<ProfileInput>({
     resolver: zodResolver(profileInputSchema),
     defaultValues: {
       login: "",
-      full_name: "",
-      birthdate: undefined,
+      first_name: "",
+      last_name: "",
+      age: undefined,
       height_cm: undefined,
       weight_kg: undefined,
-      is_private: undefined,
-      avatar_url: undefined,
+      needs_kcal: undefined,
+      needs_protein_g: undefined,
+      needs_carbs_g: undefined,
+      needs_fat_g: undefined,
+      needs_display_mode: undefined,
+      privacy: {},
     },
   });
 
@@ -59,12 +95,17 @@ const Profil = () => {
     if (!p) return;
     form.reset({
       login: p.login ?? "",
-      full_name: p.full_name ?? "",
-      birthdate: p.birthdate ?? undefined,
+      first_name: p.first_name ?? "",
+      last_name: p.last_name ?? "",
+      age: p.age ?? undefined,
       height_cm: p.height_cm ?? undefined,
       weight_kg: p.weight_kg ?? undefined,
-      is_private: p.is_private ?? undefined,
-      avatar_url: p.avatar_url ?? undefined,
+      needs_kcal: p.needs_kcal ?? undefined,
+      needs_protein_g: p.needs_protein_g ?? undefined,
+      needs_carbs_g: p.needs_carbs_g ?? undefined,
+      needs_fat_g: p.needs_fat_g ?? undefined,
+      needs_display_mode: p.needs_display_mode ?? undefined,
+      privacy: p.privacy ?? {},
     });
   }, [profileQ.data]);
 
@@ -78,35 +119,53 @@ const Profil = () => {
     })();
   }, [profileQ.data?.avatar_url, avatarVersion]);
 
-  // Login availability check
+  // Login availability check (debounce)
   const [loginStatus, setLoginStatus] = useState<"idle" | "checking" | "ok" | "taken">("idle");
-  const checkLogin = async (value: string) => {
-    if (!value || value.trim().length < 3) {
+  const loginValue = form.watch("login");
+  const initial = profileQ.data;
+  useEffect(() => {
+    const v = (loginValue ?? "").trim();
+    if (!v || v.length < 3) {
+      setLoginStatus("idle");
+      return;
+    }
+    // Si inchangé vs initial, inutile de vérifier
+    if (v.toLowerCase() === (initial?.login ?? "").toLowerCase()) {
       setLoginStatus("idle");
       return;
     }
     setLoginStatus("checking");
-    try {
-      const ok = await checkLoginAvailable(value.trim());
-      setLoginStatus(ok ? "ok" : "taken");
-    } catch {
-      setLoginStatus("idle");
-    }
-  };
+    const t = setTimeout(async () => {
+      try {
+        const ok = await checkLoginAvailable(v);
+        setLoginStatus(ok ? "ok" : "taken");
+      } catch {
+        setLoginStatus("idle");
+      }
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loginValue, profileQ.data?.login]);
 
   // Confirmation dialog before save
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const initial = profileQ.data;
   const changes = useMemo(() => {
     const v = form.getValues();
     const diff: Partial<ProfileInput> = {};
     if (!initial) return diff;
     if ((v.login ?? "") !== (initial.login ?? "")) diff.login = v.login;
-    if ((v.full_name ?? "") !== (initial.full_name ?? "")) diff.full_name = v.full_name;
-    if ((v.birthdate ?? undefined) !== (initial.birthdate ?? undefined)) diff.birthdate = v.birthdate;
+    if ((v.first_name ?? "") !== (initial.first_name ?? "")) diff.first_name = v.first_name;
+    if ((v.last_name ?? "") !== (initial.last_name ?? "")) diff.last_name = v.last_name;
+    if ((v.age ?? undefined) !== (initial.age ?? undefined)) diff.age = v.age;
     if ((v.height_cm ?? undefined) !== (initial.height_cm ?? undefined)) diff.height_cm = v.height_cm;
     if ((v.weight_kg ?? undefined) !== (initial.weight_kg ?? undefined)) diff.weight_kg = v.weight_kg;
-    if ((v.is_private ?? undefined) !== (initial.is_private ?? undefined)) diff.is_private = v.is_private;
+    if ((v.needs_kcal ?? undefined) !== (initial.needs_kcal ?? undefined)) diff.needs_kcal = v.needs_kcal;
+    if ((v.needs_protein_g ?? undefined) !== (initial.needs_protein_g ?? undefined)) diff.needs_protein_g = v.needs_protein_g;
+    if ((v.needs_carbs_g ?? undefined) !== (initial.needs_carbs_g ?? undefined)) diff.needs_carbs_g = v.needs_carbs_g;
+    if ((v.needs_fat_g ?? undefined) !== (initial.needs_fat_g ?? undefined)) diff.needs_fat_g = v.needs_fat_g;
+    if ((v.needs_display_mode ?? undefined) !== (initial.needs_display_mode ?? undefined)) diff.needs_display_mode = v.needs_display_mode;
+    // privacy: comparaison simple par JSON string
+    if (JSON.stringify(v.privacy ?? {}) !== JSON.stringify(initial.privacy ?? {})) diff.privacy = v.privacy;
     return diff;
   }, [form.watch(), initial]);
 
@@ -125,14 +184,20 @@ const Profil = () => {
       await upsert.mutateAsync(changes);
       toast({ title: "Enregistré", description: "Profil mis à jour." });
       setConfirmOpen(false);
-    } catch (e: any) {
-      toast({ title: "Erreur", description: e?.message ?? "Impossible d'enregistrer.", variant: "destructive" });
+    } catch (e) {
+      const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Impossible d'enregistrer.";
+      toast({ title: "Erreur", description: msg, variant: "destructive" });
     }
   };
   return (
     <AppLayout>
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-2">Mon Profil</h1>
+        {profileQ.data?.is_disabled ? (
+          <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 text-destructive px-3 py-2 text-sm">
+            Compte désactivé. Certaines actions peuvent être indisponibles.
+          </div>
+        ) : null}
         {profileQ.isError ? (
           <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 text-destructive px-3 py-2 text-sm">
             Erreur chargement profil: {String((profileQ.error as any)?.message ?? profileQ.error)}
@@ -147,7 +212,7 @@ const Profil = () => {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Email</span>
+                <span className="text-muted-foreground">Email/Login</span>
                 <span className="font-medium">{user?.email ?? "—"}</span>
               </div>
               <div className="flex items-center justify-between">
@@ -171,8 +236,10 @@ const Profil = () => {
             </CardHeader>
             <CardContent className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={avatarUrl ?? undefined} alt="Avatar" />
-                <AvatarFallback>{(profileQ.data?.full_name?.[0] ?? "?").toUpperCase()}</AvatarFallback>
+                <AvatarImage src={avatarUrl ?? "/placeholder.svg"} alt="Avatar" />
+                <AvatarFallback className={user?.user_metadata?.role === "admin" ? "bg-emerald-900 text-white" : undefined}>
+                  {((profileQ.data?.first_name?.[0] ?? profileQ.data?.last_name?.[0] ?? "?") as string).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="space-x-2">
         <input ref={(el) => (fileInputRef.current = el)} type="file" accept="image/*" className="hidden" onChange={async (e) => {
@@ -187,14 +254,36 @@ const Profil = () => {
                     if (signed) setAvatarUrl(signed);
                     // Ensuite, on forcera un refresh mineur au cas où la DB se met à jour différemment
                     setTimeout(() => setAvatarVersion((v) => v + 1), 1500);
-                  } catch (err: any) {
-                    toast({ title: "Erreur", description: err?.message ?? "Upload impossible", variant: "destructive" });
+                  } catch (err) {
+                    const msg = err && typeof err === "object" && "message" in err ? String((err as { message?: unknown }).message) : "Upload impossible";
+                    toast({ title: "Erreur", description: msg, variant: "destructive" });
                   } finally {
                     if (inputEl) inputEl.value = ""; // reset sans accéder à un event relâché
                   }
                 }} />
                 <Button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadAvatar.isPending}>
-                  {uploadAvatar.isPending ? "Envoi…" : "Téléverser"}
+                  {uploadAvatar.isPending ? "Envoi…" : "Charger"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={delAvatar.isPending}
+                  onClick={async () => {
+                    const ok = window.confirm("Supprimer l'avatar ?");
+                    if (!ok) return;
+                    try {
+                      await delAvatar.mutateAsync(profileQ.data?.avatar_url ?? undefined);
+                      setAvatarUrl("/placeholder.svg");
+                      toast({ title: "Avatar supprimé" });
+                    } catch (e) {
+                      const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Suppression impossible";
+                      toast({ title: "Erreur", description: msg, variant: "destructive" });
+                    } finally {
+                      setTimeout(() => setAvatarVersion((v) => v + 1), 500);
+                    }
+                  }}
+                >
+                  {delAvatar.isPending ? "Suppression…" : "Supprimer"}
                 </Button>
               </div>
             </CardContent>
@@ -218,7 +307,7 @@ const Profil = () => {
                         <FormLabel>Identifiant (login)</FormLabel>
                         <div className="flex items-center gap-2">
                           <FormControl>
-                            <Input placeholder="ex: marie42" value={field.value ?? ""} onChange={field.onChange} onBlur={(e) => { field.onBlur(); checkLogin(e.target.value); }} />
+                            <Input placeholder="ex: marie42" value={field.value ?? ""} onChange={field.onChange} />
                           </FormControl>
                           <span className="text-xs text-muted-foreground min-w-[80px]">
                             {loginStatus === "idle" && ""}
@@ -232,35 +321,50 @@ const Profil = () => {
                     )}
                   />
 
-                  {/* full_name */}
-                  <FormField
-                    control={form.control}
-                    name="full_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nom complet</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex: Marie Dupont" value={field.value ?? ""} onChange={field.onChange} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      {/* first_name */}
+                      <FormField
+                        control={form.control}
+                        name="first_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Prénom</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: Marie" value={field.value ?? ""} onChange={field.onChange} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                  {/* birthdate */}
-                  <FormField
-                    control={form.control}
-                    name="birthdate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date de naissance</FormLabel>
-                        <FormControl>
-                          <Input type="date" value={field.value ?? ""} onChange={field.onChange} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      {/* last_name */}
+                      <FormField
+                        control={form.control}
+                        name="last_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nom</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: DUPONT" value={(field.value ?? "").toString().toUpperCase()} onChange={(e) => field.onChange(e.target.value)} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* age */}
+                      <FormField
+                        control={form.control}
+                        name="age"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Âge</FormLabel>
+                            <FormControl>
+                              <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                   {/* height */}
                   <FormField
@@ -277,7 +381,7 @@ const Profil = () => {
                     )}
                   />
 
-                  {/* weight */}
+                  {/* weight + BMI inline */}
                   <FormField
                     control={form.control}
                     name="weight_kg"
@@ -285,36 +389,123 @@ const Profil = () => {
                       <FormItem>
                         <FormLabel>Poids (kg)</FormLabel>
                         <FormControl>
-                          <Input type="number" inputMode="decimal" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                          <div className="flex items-center gap-2">
+                            <Input className="w-40" type="number" inputMode="decimal" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                            <span className="text-xs text-muted-foreground">
+                              {(() => {
+                                const v = computeBmi(form.getValues("height_cm"), field.value);
+                                return bmiLabel(v);
+                              })()}
+                            </span>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* BMI readonly */}
-                  <div className="col-span-full">
-                    <div className="text-sm text-muted-foreground">
-                      IMC (calculé): <span className="font-medium">{profileQ.data?.bmi ?? "—"}</span>
-                    </div>
-                  </div>
-
-                  {/* privacy */}
+                  {/* Needs */}
                   <FormField
                     control={form.control}
-                    name="is_private"
+                    name="needs_kcal"
                     render={({ field }) => (
-                      <FormItem className="col-span-full flex items-center justify-between rounded-md border p-3">
-                        <div>
-                          <FormLabel>Profil privé</FormLabel>
-                          <div className="text-sm text-muted-foreground">Masque certaines informations pour les autres.</div>
-                        </div>
+                      <FormItem>
+                        <FormLabel>Besoins (kcal/j)</FormLabel>
                         <FormControl>
-                          <Switch checked={!!field.value} onCheckedChange={(v) => field.onChange(v)} />
+                          <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
                         </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="needs_protein_g"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Protéines (g/j)</FormLabel>
+                        <FormControl>
+                          <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="needs_carbs_g"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Glucides (g/j)</FormLabel>
+                        <FormControl>
+                          <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="needs_fat_g"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lipides (g/j)</FormLabel>
+                        <FormControl>
+                          <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="needs_display_mode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Affichage objectifs</FormLabel>
+                        <FormControl>
+                          <Select
+                            value={field.value ?? ""}
+                            onValueChange={(v) => field.onChange(v as any)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Mode d'affichage" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="absolute">Valeurs absolues</SelectItem>
+                              <SelectItem value="percentage">Pourcentages</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Confidentialité par champ */}
+                  <div className="col-span-full rounded-md border p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <div className="font-medium">Confidentialité</div>
+                        <div className="text-xs text-muted-foreground">Choisissez les champs à masquer aux autres.</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(["age", "height_cm", "weight_kg"] as const).map((k) => (
+                        <label key={k} className="flex items-center justify-between gap-2 border rounded-md px-3 py-2">
+                          <span className="text-sm">{k === "age" ? "Âge" : k === "height_cm" ? "Taille" : "Poids"}</span>
+                          <Switch
+                            checked={!!(form.getValues("privacy") as any)?.[k]}
+                            onCheckedChange={(v) => {
+                              const priv = { ...(form.getValues("privacy") || {}) } as Record<string, boolean>;
+                              if (v) priv[k] = true; else delete priv[k];
+                              form.setValue("privacy", priv, { shouldDirty: true });
+                            }}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
 
                   <div className="col-span-full flex gap-2">
                     <Button type="submit" disabled={upsert.isPending}>{upsert.isPending ? "Enregistrement…" : "Enregistrer"}</Button>
@@ -333,28 +524,243 @@ const Profil = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex flex-wrap gap-2">
-                {(myPathos.list.data ?? []).map((up) => (
-                  <Badge key={up.id} variant="secondary">{up.pathology?.label ?? up.pathology_id}</Badge>
+                {(myPathos.list.data ?? []).map((up, idx) => (
+                  <Badge key={`up-${up.id ?? up.pathology_id ?? idx}`} variant="secondary">{up.pathology?.label ?? up.pathology_id}</Badge>
                 ))}
+                {(myCustom.data ?? [])
+                  .filter((c) => !c.is_hidden)
+                  .filter((c) => {
+                    const code = (c.code || "").toUpperCase();
+                    const lbl = (c.label || "").toLowerCase();
+                    const alsoSelectedAsDefault = (code && selectedDefaultCodes.has(code)) || (!code && selectedDefaultLabels.has(lbl));
+                    return !alsoSelectedAsDefault; // cache si déjà SÉLECTIONNÉE en défaut
+                  })
+                  .map((c, idx) => (
+                    <Badge
+                      key={`c-${c.id ?? c.label ?? idx}`}
+                      className="bg-emerald-900/60 text-emerald-50 hover:bg-emerald-900"
+                    >
+                      {c.label}
+                    </Badge>
+                  ))}
               </div>
               <div className="grid gap-2 max-h-64 overflow-auto border rounded-md p-3">
                 {(pathologiesQ.data ?? []).map((p) => {
                   const selected = (myPathos.list.data ?? []).some((up) => up.pathology_id === p.id);
                   return (
-                    <label key={p.id} className="flex items-center gap-3">
-                      <Checkbox checked={selected} onCheckedChange={async (v) => {
-                        try {
-                          if (v) await myPathos.add.mutateAsync(p.id);
-                          else await myPathos.remove.mutateAsync(p.id);
-                        } catch (e: any) {
-                          toast({ title: "Erreur", description: e?.message ?? "Action impossible", variant: "destructive" });
-                        }
-                      }} />
-                      <span>{p.label}</span>
-                      <span className="text-xs text-muted-foreground">({p.code})</span>
-                    </label>
+                    <div key={p.id} className="flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-3">
+                        <Checkbox checked={selected} onCheckedChange={async (v) => {
+                          try {
+                            if (v === true) await myPathos.add.mutateAsync(p.id);
+                            else await myPathos.remove.mutateAsync(p.id);
+                          } catch (e) {
+                            const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Action impossible";
+                            toast({ title: "Erreur", description: msg, variant: "destructive" });
+                          }
+                        }} />
+                        <span>{p.label}</span>
+                        <span className="text-xs text-muted-foreground">({p.code})</span>
+                      </label>
+                      {showAdmin ? (
+                        <div className="ml-auto flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Rendre privé"
+                            className="h-8 w-8 p-0 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white justify-center"
+                            disabled={demoteDefault.isPending || myPathos.remove.isPending}
+                            onClick={async () => {
+                              try {
+                                // Transfert défaut -> perso
+                                await demoteDefault.mutateAsync(p.id);
+                                // Retire la sélection défaut de l'utilisateur pour que la perso prenne le relais
+                                await myPathos.remove.mutateAsync(p.id);
+                                toast({ title: "Rendue privée", description: `${p.label} ajoutée à vos personnelles.` });
+                              } catch (e) {
+                                const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Transfert impossible";
+                                toast({ title: "Erreur", description: msg, variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <Lock className="h-4 w-4" aria-hidden="true" />
+                            <span className="sr-only">Rendre privé</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Supprimer"
+                            className="h-8 w-8 p-0 rounded-full bg-red-600 hover:bg-red-500 text-white justify-center"
+                            disabled={delDefault.isPending}
+                            onClick={async () => {
+                              if (!window.confirm(`Supprimer définitivement "${p.label}" des défauts ?`)) return;
+                              try {
+                                await delDefault.mutateAsync(p.id);
+                                toast({ title: "Supprimée", description: `${p.label} supprimée des défauts.` });
+                              } catch (e) {
+                                const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Suppression impossible";
+                                toast({ title: "Erreur", description: msg, variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            <span className="sr-only">Supprimer</span>
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
                   );
                 })}
+              </div>
+              <div className="grid gap-2">
+                <div className="text-sm font-medium">Personnelles</div>
+        <div className="flex flex-col gap-2 rounded-md border border-emerald-800 bg-emerald-950/40 p-3">
+                  {(myCustom.data ?? [])
+                    .filter((c) => {
+                      const code = (c.code || "").toUpperCase();
+                      const lbl = (c.label || "").toLowerCase();
+                      const alsoSelectedAsDefault = (code && selectedDefaultCodes.has(code)) || (!code && selectedDefaultLabels.has(lbl));
+                      return !alsoSelectedAsDefault; // cache uniquement si aussi sélectionnée en défaut
+                    })
+                    .map((c) => {
+                    const code = (c.code || "").toUpperCase();
+                    const lbl = (c.label || "").toLowerCase();
+                    const isPromoted = (code && selectedDefaultCodes.has(code)) || (!code && selectedDefaultLabels.has(lbl));
+                    return (
+          <label key={`c-${c.id}`} className="flex items-center justify-between gap-3 rounded-md border border-emerald-900/60 bg-emerald-950/30 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={!c.is_hidden}
+                          onCheckedChange={async (v) => {
+                            try {
+                const visible = v === true;
+                await toggleCustomHidden.mutateAsync({ id: c.id, hidden: !visible });
+                            } catch (e) {
+                              const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Action impossible";
+                              toast({ title: "Erreur", description: msg, variant: "destructive" });
+                            }
+                          }}
+                        />
+                        <span className="text-sm">
+                          {c.label}
+                          {c.code ? <span className="ml-2 text-xs text-emerald-300">({c.code})</span> : null}
+                        </span>
+                      </div>
+            {user?.user_metadata?.role === "admin" ? (
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  title="Rendre public"
+                  className="h-8 w-8 p-0 rounded-full bg-blue-600 hover:bg-blue-500 text-white justify-center"
+                  disabled={promoteCustom.isPending}
+                  onClick={async () => {
+                    try {
+                      await promoteCustom.mutateAsync([c.id]);
+                      toast({ title: "Rendue publique", description: `${c.label} ajoutée aux défauts.` });
+                    } catch (e) {
+                      const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Promotion impossible";
+                      toast({ title: "Erreur", description: msg, variant: "destructive" });
+                    }
+                  }}
+                >
+                  <Unlock className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only">Rendre public</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  title="Supprimer"
+                  className="h-8 w-8 p-0 rounded-full bg-red-600 hover:bg-red-500 text-white justify-center"
+                  disabled={delCustom.isPending}
+                  onClick={async () => {
+                    if (!window.confirm(`Supprimer la pathologie personnelle \"${c.label}\" ?`)) return;
+                    try {
+                      await delCustom.mutateAsync(c.id);
+                      toast({ title: "Supprimée", description: `${c.label} retirée des personnelles.` });
+                    } catch (e) {
+                      const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Suppression impossible";
+                      toast({ title: "Erreur", description: msg, variant: "destructive" });
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only">Supprimer</span>
+                </Button>
+              </div>
+            ) : null}
+                    </label>
+                    );
+          })}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input
+                    ref={customInputRef}
+                    placeholder="Ajouter une pathologie personnelle (cochable/masquable)"
+           onKeyDown={async (e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      const val = (customInputRef.current?.value || "").trim();
+                      if (!val) return;
+                      // Vérif si existe déjà en défaut
+                      const codeUp = (user?.user_metadata?.role === "admin" ? sanitizeCode(customCode.trim()) : "");
+                      const existsDefault = (pathologiesQ.data ?? []).some((p) => p.label.toLowerCase() === val.toLowerCase() || (!!codeUp && p.code?.toUpperCase() === codeUp));
+                      if (existsDefault) {
+                        toast({ title: "Déjà existante", description: "Cette pathologie existe déjà dans les défauts.", variant: "destructive" });
+                        return;
+                      }
+                      try {
+                        const payload = user?.user_metadata?.role === "admin" && customCode.trim() !== ""
+                          ? { label: val, code: sanitizeCode(customCode.trim()) }
+                          : val;
+                        await addCustom.mutateAsync(payload);
+                        if (customInputRef.current) customInputRef.current.value = "";
+                        setCustomCode("");
+            toast({ title: "Pathologie ajoutée" });
+                      } catch (err) {
+                        const msg = err && typeof err === "object" && "message" in err ? String((err as { message?: unknown }).message) : "Ajout impossible";
+                        toast({ title: "Erreur", description: msg, variant: "destructive" });
+                      }
+                    }}
+                  />
+                  {user?.user_metadata?.role === "admin" ? (
+                    <Input
+                      className="w-48"
+                      placeholder="Code (2 caractères)"
+                      value={customCode}
+                      maxLength={2}
+                      onChange={(e) => setCustomCode(sanitizeCode(e.target.value))}
+                    />
+                  ) : null}
+                  <Button
+                    type="button"
+                    disabled={addCustom.isPending}
+          onClick={async () => {
+                      const val = (customInputRef.current?.value || "").trim();
+                      if (!val) return;
+                      const codeUp = (user?.user_metadata?.role === "admin" ? sanitizeCode(customCode.trim()) : "");
+                      const existsDefault = (pathologiesQ.data ?? []).some((p) => p.label.toLowerCase() === val.toLowerCase() || (!!codeUp && p.code?.toUpperCase() === codeUp));
+                      if (existsDefault) {
+                        toast({ title: "Déjà existante", description: "Cette pathologie existe déjà dans les défauts.", variant: "destructive" });
+                        return;
+                      }
+                      try {
+                        const payload = user?.user_metadata?.role === "admin" && customCode.trim() !== ""
+                          ? { label: val, code: sanitizeCode(customCode.trim()) }
+                          : val;
+                        await addCustom.mutateAsync(payload);
+                        if (customInputRef.current) customInputRef.current.value = "";
+                        setCustomCode("");
+            toast({ title: "Pathologie ajoutée" });
+                      } catch (err) {
+                        const msg = err && typeof err === "object" && "message" in err ? String((err as { message?: unknown }).message) : "Ajout impossible";
+                        toast({ title: "Erreur", description: msg, variant: "destructive" });
+                      }
+                    }}
+                  >
+                    {addCustom.isPending ? "Ajout…" : "Ajouter"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -372,9 +778,27 @@ const Profil = () => {
                 <div>Aucune modification détectée.</div>
               ) : (
                 <ul className="list-disc pl-5">
-                  {Object.entries(changes).map(([k, v]) => (
-                    <li key={k}><span className="font-medium">{k}</span>: {String(v)}</li>
-                  ))}
+                  {Object.entries(changes).map(([k, v]) => {
+                    const labels: Record<string, string> = {
+                      login: "Identifiant",
+                      first_name: "Prénom",
+                      last_name: "Nom",
+                      age: "Âge",
+                      height_cm: "Taille (cm)",
+                      weight_kg: "Poids (kg)",
+                      needs_kcal: "Besoins (kcal/j)",
+                      needs_protein_g: "Protéines (g/j)",
+                      needs_carbs_g: "Glucides (g/j)",
+                      needs_fat_g: "Lipides (g/j)",
+                      needs_display_mode: "Affichage objectifs",
+                      privacy: "Confidentialité",
+                    };
+                    const label = labels[k] || k;
+                    const value = k === "privacy" ? "(modifié)" : String(v);
+                    return (
+                      <li key={k}><span className="font-medium">{label}</span>: {value}</li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

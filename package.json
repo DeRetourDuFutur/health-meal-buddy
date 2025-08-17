@@ -11,7 +11,8 @@
     "preview": "vite preview",
   "seed:admin": "tsx scripts/seedAdmin.ts",
   "check:supabase:client": "tsx scripts/checkSupabaseClient.ts",
-  "check:supabase:admin": "tsx scripts/checkSupabaseAdmin.ts"
+  "check:supabase:admin": "tsx scripts/checkSupabaseAdmin.ts",
+  "fix:codes": "tsx scripts/updatePathologyCodes.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

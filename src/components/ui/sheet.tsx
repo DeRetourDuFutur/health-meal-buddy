@@ -60,6 +60,7 @@ const SheetContent = React.forwardRef<
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
+      aria-label={(props as { [key: string]: unknown })["aria-label"] as string | undefined ?? "Side panel"}
       {...props}
     >
       {children}
