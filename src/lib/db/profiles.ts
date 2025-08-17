@@ -105,9 +105,7 @@ function toProfile(row: Record<string, unknown> | null): Profile | null {
     };
 }
 
-// Mémo: la table user_custom_pathologies possède-t-elle la colonne is_hidden ?
-// Par défaut on considère "non" pour éviter les 400. On passera à true si on détecte la colonne.
-let HAS_CUSTOM_HIDDEN_COL: boolean = false;
+// Colonne is_hidden garantie côté DB (décision 19.D)
 
 export async function getMyProfile(): Promise<Profile | null> {
   const session = (await supabase.auth.getSession()).data.session;
@@ -441,33 +439,20 @@ export async function listMyCustomPathologies(): Promise<UserCustomPathology[]> 
   if (!userId) throw new Error("Vous devez être connecté.");
   const { data, error } = await supabase
     .from("user_custom_pathologies")
-    .select("*")
+    .select("id,user_id,label,code,is_hidden,created_at,updated_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
   if (error) throw new Error(mapPgErrorToMessage(error.code, error.message));
   const rows = (data ?? []) as Array<Record<string, unknown>>;
-  // Détection de la présence de la colonne is_hidden sans provoquer d'erreur réseau
-  if (rows.length > 0) {
-    const has = rows.some((r) => Object.prototype.hasOwnProperty.call(r, "is_hidden"));
-    if (has) HAS_CUSTOM_HIDDEN_COL = true; else HAS_CUSTOM_HIDDEN_COL = false;
-  }
-  // Merge avec fallback localStorage si colonne is_hidden absente
-  const lsKey = `custom_pathos_hidden:${userId}`;
-  let lsMap: Record<string, boolean> = {};
-  try {
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(lsKey) : null;
-    if (raw) lsMap = JSON.parse(raw) as Record<string, boolean>;
-  } catch {}
-  const mapped: UserCustomPathology[] = rows.map((r) => ({
+  return rows.map((r) => ({
     id: String(r.id),
     user_id: String(r.user_id),
     label: String(r.label),
-    code: "code" in r && typeof (r as any).code === "string" ? ((r as any).code as string) : null,
-    is_hidden: ("is_hidden" in r ? (r as any).is_hidden : undefined) ?? lsMap[String(r.id)] ?? false,
+    code: typeof (r as any).code === "string" ? ((r as any).code as string) : null,
+    is_hidden: !!(r as any).is_hidden,
     created_at: String(r.created_at),
     updated_at: String(r.updated_at),
   }));
-  return mapped;
 }
 
 export async function addMyCustomPathology(label: string, code?: string | null): Promise<UserCustomPathology> {
@@ -476,33 +461,67 @@ export async function addMyCustomPathology(label: string, code?: string | null):
   if (!userId) throw new Error("Vous devez être connecté.");
   const sanitized = label.trim();
   if (sanitized.length < 2) throw new Error("Libellé trop court.");
-  // Tente l'insertion avec code si fourni; fallback sans code si la colonne manque
-  let ins = await supabase
+  // 1) Existence case-insensitive: si trouvée et inactive → réactiver, sinon retourner telle quelle
+  const pre = await supabase
     .from("user_custom_pathologies")
-    .insert(code && code.trim() !== "" ? { user_id: userId, label: sanitized, code: code.trim() } : { user_id: userId, label: sanitized })
-    .select("*")
-    .single();
-  if (ins?.error) {
-    const raw = (ins.error.message || "").toLowerCase();
-    const missing = code && (raw.includes("code") && (raw.includes("does not exist") || raw.includes("could not find") || raw.includes("schema cache") || raw.includes("unknown column")));
-    if (missing) {
-      ins = await supabase
-        .from("user_custom_pathologies")
-        .insert({ user_id: userId, label: sanitized })
-        .select("*")
-        .single();
-    }
+    .select("id,is_hidden,label,code,created_at,updated_at")
+    .eq("user_id", userId)
+    .ilike("label", sanitized)
+    .maybeSingle();
+  if (pre?.error && pre.error.code !== "PGRST116") { // ignore not found
+    throw new Error(mapPgErrorToMessage(pre.error.code, pre.error.message));
   }
-  if (ins?.error) throw new Error(mapPgErrorToMessage(ins.error.code, ins.error.message));
+  const existing = pre?.data as (Record<string, unknown> | null);
+  if (existing && existing.id) {
+    const hid = !!(existing as any).is_hidden;
+    if (hid) {
+      const upd = await supabase
+        .from("user_custom_pathologies")
+        .update({ is_hidden: false as any })
+        .eq("user_id", userId)
+        .eq("id", String(existing.id))
+        .select("id,user_id,label,code,is_hidden,created_at,updated_at")
+        .single();
+      if (upd.error) throw new Error(mapPgErrorToMessage(upd.error.code, upd.error.message));
+      const r = upd.data as Record<string, unknown>;
+      return {
+        id: String(r.id),
+        user_id: String(r.user_id),
+        label: String(r.label),
+        code: typeof (r as any).code === "string" ? ((r as any).code as string) : null,
+        is_hidden: !!(r as any).is_hidden,
+        created_at: String(r.created_at),
+        updated_at: String(r.updated_at),
+      };
+    }
+    // déjà active → renvoyer l'existante (idempotent)
+    return {
+      id: String(existing.id),
+      user_id: String((existing as any).user_id),
+      label: String((existing as any).label),
+      code: typeof (existing as any).code === "string" ? ((existing as any).code as string) : null,
+      is_hidden: !!(existing as any).is_hidden,
+      created_at: String((existing as any).created_at),
+      updated_at: String((existing as any).updated_at),
+    };
+  }
+  // 2) Insertion (code optionnel)
+  const payload = (code && code.trim() !== "")
+    ? { user_id: userId, label: sanitized, code: code.trim() }
+    : { user_id: userId, label: sanitized };
+  const ins = await supabase
+    .from("user_custom_pathologies")
+    .insert(payload)
+    .select("id,user_id,label,code,is_hidden,created_at,updated_at")
+    .single();
+  if (ins.error) throw new Error(mapPgErrorToMessage(ins.error.code, ins.error.message));
   const r = ins.data as Record<string, unknown>;
-  // Mise à jour du mémo si la colonne apparaît dans le retour
-  if (Object.prototype.hasOwnProperty.call(r, "is_hidden")) HAS_CUSTOM_HIDDEN_COL = true;
   return {
     id: String(r.id),
     user_id: String(r.user_id),
     label: String(r.label),
-    code: "code" in r && typeof (r as any).code === "string" ? ((r as any).code as string) : null,
-    is_hidden: ("is_hidden" in r ? (r as any).is_hidden : undefined) ?? false,
+    code: typeof (r as any).code === "string" ? ((r as any).code as string) : null,
+    is_hidden: !!(r as any).is_hidden,
     created_at: String(r.created_at),
     updated_at: String(r.updated_at),
   };
@@ -540,52 +559,9 @@ export async function setMyCustomPathologyHidden(id: string, hidden: boolean): P
   const session = (await supabase.auth.getSession()).data.session;
   const userId = session?.user.id;
   if (!userId) throw new Error("Vous devez être connecté.");
-  // Si on sait que la colonne n'existe pas, ne tente pas l'UPDATE (évite le 400 réseau)
-  if (!HAS_CUSTOM_HIDDEN_COL) {
-    const lsKey = `custom_pathos_hidden:${userId}`;
-    try {
-      const rawLs = typeof window !== "undefined" ? window.localStorage.getItem(lsKey) : null;
-      const map = rawLs ? (JSON.parse(rawLs) as Record<string, boolean>) : {};
-      map[id] = hidden;
-      if (typeof window !== "undefined") window.localStorage.setItem(lsKey, JSON.stringify(map));
-    } catch {}
-    return;
-  }
   const table = supabase.from("user_custom_pathologies");
   const res = await table.update({ is_hidden: hidden as any }).eq("user_id", userId).eq("id", id);
-  if (res?.error) {
-    const raw = res.error.message || "";
-    const msg = raw.toLowerCase();
-    const isMissingColumn = (
-      msg.includes("is_hidden") && (
-        msg.includes("does not exist") ||
-        msg.includes("could not find") ||
-        msg.includes("schema cache") ||
-        msg.includes("unknown column") ||
-        msg.includes("no column")
-      )
-    ) || (msg.includes("could not find the") && msg.includes("is_hidden"));
-    if (isMissingColumn) {
-      HAS_CUSTOM_HIDDEN_COL = false; // mémoriser l'absence pour les prochains toggles
-      const lsKey = `custom_pathos_hidden:${userId}`;
-      try {
-        const rawLs = typeof window !== "undefined" ? window.localStorage.getItem(lsKey) : null;
-        const map = rawLs ? (JSON.parse(rawLs) as Record<string, boolean>) : {};
-        map[id] = hidden;
-        if (typeof window !== "undefined") window.localStorage.setItem(lsKey, JSON.stringify(map));
-      } catch {}
-      return;
-    }
-    throw new Error(mapPgErrorToMessage(res.error.code, res.error.message));
-  }
-  // Optionnel: garder LS synchro même si DB existe
-  const lsKey = `custom_pathos_hidden:${userId}`;
-  try {
-    const rawLs = typeof window !== "undefined" ? window.localStorage.getItem(lsKey) : null;
-    const map = rawLs ? (JSON.parse(rawLs) as Record<string, boolean>) : {};
-    map[id] = hidden;
-    if (typeof window !== "undefined") window.localStorage.setItem(lsKey, JSON.stringify(map));
-  } catch {}
+  if (res?.error) throw new Error(mapPgErrorToMessage(res.error.code, res.error.message));
 }
 
 // Utilitaire: génère un code court à partir d'un libellé (ex: "Diabète Type 2" -> "DT2")

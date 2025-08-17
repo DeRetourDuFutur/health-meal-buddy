@@ -144,7 +144,7 @@ export function useToggleMyCustomPathologyHidden() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, hidden }: { id: string; hidden: boolean }) => setMyCustomPathologyHidden(id, hidden),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.myCustomPathologies }),
+  onSuccess: () => qc.invalidateQueries({ queryKey: qk.myCustomPathologies }),
   });
 }
 
