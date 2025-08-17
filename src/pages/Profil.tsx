@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +36,7 @@ import {
 } from "@/hooks/useProfile";
 import type { ProfileInput } from "@/lib/db/profiles";
 import { profileInputSchema } from "@/lib/db/profiles";
-import { Lock, Unlock, Trash2 } from "lucide-react";
+import { Lock, Unlock, Trash2, Upload } from "lucide-react";
 
 const Profil = () => {
   const { user } = useAuth();
@@ -68,6 +69,8 @@ const Profil = () => {
     .map((up) => (up.pathology?.label || "").toLowerCase())
     .filter(Boolean)), [myPathos.list.data]);
   const showAdmin = user?.user_metadata?.role === "admin";
+  // Masquage UI de la section "Confidentialité" (fonctionnalité conservée)
+  const showPrivacy = false;
 
   // Form init
   const form = useForm<ProfileInput>({
@@ -203,8 +206,10 @@ const Profil = () => {
           </div>
         ) : null}
         <div className="grid gap-6 max-w-5xl">
-          {/* Compte */}
-          <Card>
+          {/* En-tête: Compte + Avatar alignés */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Compte */}
+            <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Compte</CardTitle>
               <CardDescription>Informations de base liées à votre compte.</CardDescription>
@@ -225,21 +230,33 @@ const Profil = () => {
                 </span>
               </div>
             </CardContent>
-          </Card>
+            </Card>
 
-          {/* Avatar */}
-          <Card>
+            {/* Avatar */}
+            <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Avatar</CardTitle>
               <CardDescription>Image de profil stockée de façon privée.</CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center gap-4">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={avatarUrl ?? "/placeholder.svg"} alt="Avatar" />
-                <AvatarFallback className={user?.user_metadata?.role === "admin" ? "bg-emerald-900 text-white" : undefined}>
-                  {((profileQ.data?.first_name?.[0] ?? profileQ.data?.last_name?.[0] ?? "?") as string).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <CardContent className="flex items-center gap-4">
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <Avatar className="h-16 w-16 cursor-zoom-in">
+                    <AvatarImage src={avatarUrl ?? "/placeholder.svg"} alt="Avatar" />
+                    <AvatarFallback className={user?.user_metadata?.role === "admin" ? "bg-emerald-900 text-white" : undefined}>
+                      {((profileQ.data?.first_name?.[0] ?? profileQ.data?.last_name?.[0] ?? "?") as string).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </HoverCardTrigger>
+                <HoverCardContent side="top" align="start" className="w-auto p-2">
+                  <Avatar className="h-40 w-40">
+                    <AvatarImage src={avatarUrl ?? "/placeholder.svg"} alt="Avatar agrandi" />
+                    <AvatarFallback className={user?.user_metadata?.role === "admin" ? "bg-emerald-900 text-white" : undefined}>
+                      {((profileQ.data?.first_name?.[0] ?? profileQ.data?.last_name?.[0] ?? "?") as string).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </HoverCardContent>
+              </HoverCard>
               <div className="space-x-2">
         <input ref={(el) => (fileInputRef.current = el)} type="file" accept="image/*" className="hidden" onChange={async (e) => {
                   const inputEl = e.currentTarget;
@@ -260,8 +277,15 @@ const Profil = () => {
                     if (inputEl) inputEl.value = ""; // reset sans accéder à un event relâché
                   }
                 }} />
-                <Button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadAvatar.isPending}>
-                  {uploadAvatar.isPending ? "Envoi…" : "Charger"}
+                <Button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadAvatar.isPending}
+                  title="Charger un avatar"
+                  className="h-9 w-9 p-0 rounded-full justify-center"
+                >
+                  <Upload className="h-5 w-5" aria-hidden="true" />
+                  <span className="sr-only">Charger</span>
                 </Button>
                 <Button
                   type="button"
@@ -282,117 +306,110 @@ const Profil = () => {
                     }
                   }}
                 >
-                  {delAvatar.isPending ? "Suppression…" : "Supprimer"}
+                  <Trash2 className="h-5 w-5" aria-hidden="true" />
+                  <span className="sr-only">Supprimer</span>
                 </Button>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
 
           {/* Formulaire profil */}
           <Card>
             <CardHeader>
               <CardTitle>Profil</CardTitle>
-              <CardDescription>Identifiant, infos personnelles et confidentialité.</CardDescription>
+              <CardDescription>Infos personnelles et confidentialité.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form className="grid md:grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
-                  {/* login */}
-                  <FormField
-                    control={form.control}
-                    name="login"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Identifiant (login)</FormLabel>
-                        <div className="flex items-center gap-2">
+                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+                  {/* Ligne 1: Prénom / NOM (uppercase visuel) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="first_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Prénom</FormLabel>
                           <FormControl>
-                            <Input placeholder="ex: marie42" value={field.value ?? ""} onChange={field.onChange} />
+                            <Input value={field.value ?? ""} onChange={field.onChange} />
                           </FormControl>
-                          <span className="text-xs text-muted-foreground min-w-[80px]">
-                            {loginStatus === "idle" && ""}
-                            {loginStatus === "checking" && "Vérif…"}
-                            {loginStatus === "ok" && <span className="text-emerald-600">disponible</span>}
-                            {loginStatus === "taken" && <span className="text-red-600">déjà pris</span>}
-                          </span>
-                        </div>
-                        <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                  {/* first_name */}
-                  <FormField
-                    control={form.control}
-                    name="first_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prénom</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="last_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>NOM</FormLabel>
+                          <FormControl>
+                            <Input className="uppercase" value={field.value ?? ""} onChange={field.onChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                  {/* last_name */}
-                  <FormField
-                    control={form.control}
-                    name="last_name"
-                    render={({ field }) => (
+                  {/* Ligne 2: Âge / Taille / Poids / IMC */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="age"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Âge</FormLabel>
+                          <FormControl>
+                            <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="height_cm"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Taille (cm)</FormLabel>
+                          <FormControl>
+                            <Input type="number" inputMode="decimal" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="weight_kg"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Poids (kg)</FormLabel>
+                          <FormControl>
+                            <Input type="number" inputMode="decimal" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {/* IMC (lecture seule) avec badge coloré + libellé */}
+                    <div>
                       <FormItem>
-                        <FormLabel>NOM</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                      {/* age */}
-                      <FormField
-                        control={form.control}
-                        name="age"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Âge</FormLabel>
-                            <FormControl>
-                              <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                  {/* height */}
-                  <FormField
-                    control={form.control}
-                    name="height_cm"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Taille (cm)</FormLabel>
-                        <FormControl>
-                          <Input type="number" inputMode="decimal" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* weight */}
-                  <FormField
-                    control={form.control}
-                    name="weight_kg"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Poids (kg)</FormLabel>
+                        <FormLabel>IMC</FormLabel>
                         <FormControl>
                           <div className="flex items-center gap-2">
-                            <Input className="w-40" type="number" inputMode="decimal" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
                             {(() => {
                               const v = computeBmi(form.getValues("height_cm"), form.getValues("weight_kg"));
-                              if (v == null) return <span className="text-xs text-muted-foreground">—</span>;
+                              if (v == null) {
+                                return (
+                                  <>
+                                    <Input className="w-20 md:w-24 flex-none" disabled value="" />
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  </>
+                                );
+                              }
                               const cls = v < 18.5
                                 ? "bg-slate-500 text-white"
                                 : v < 25
@@ -400,127 +417,144 @@ const Profil = () => {
                                   : v < 30
                                     ? "bg-orange-500 text-white"
                                     : "bg-red-600 text-white";
+                              const label = v < 18.5
+                                ? "Sous-poids"
+                                : v < 25
+                                  ? "Normal"
+                                  : v < 30
+                                    ? "Surpoids"
+                                    : "Obèse";
                               return (
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{v.toFixed(1)}</span>
+                                <>
+                                  <Input className="w-20 md:w-24 flex-none" disabled value={v.toFixed(1)} />
+                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>
+                                </>
                               );
                             })()}
                           </div>
                         </FormControl>
-                        <FormMessage />
                       </FormItem>
-                    )}
-                  />
-
-                  {/* Needs */}
-                  <FormField
-                    control={form.control}
-                    name="needs_kcal"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Besoins (kcal/j)</FormLabel>
-                        <FormControl>
-                          <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="needs_protein_g"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Protéines (g/j)</FormLabel>
-                        <FormControl>
-                          <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="needs_carbs_g"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Glucides (g/j)</FormLabel>
-                        <FormControl>
-                          <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="needs_fat_g"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Lipides (g/j)</FormLabel>
-                        <FormControl>
-                          <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="needs_display_mode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Affichage objectifs</FormLabel>
-                        <FormControl>
-                          <Select
-                            value={field.value ?? ""}
-                            onValueChange={(v) => field.onChange(v as any)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Mode d'affichage" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="absolute">Valeurs absolues</SelectItem>
-                              <SelectItem value="percentage">Pourcentages</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Confidentialité par champ (icônes cadenas) */}
-                  <div className="col-span-full rounded-md border p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <div className="font-medium">Confidentialité</div>
-                        <div className="text-xs text-muted-foreground">Cadenas vert = public, rouge = privé.</div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {(["age", "height_cm", "weight_kg"] as const).map((k) => {
-                        const isPrivate = !!(form.getValues("privacy") as any)?.[k];
-                        return (
-                          <div key={k} className="flex items-center justify-between gap-2 border rounded-md px-3 py-2">
-                            <span className="text-sm">{k === "age" ? "Âge" : k === "height_cm" ? "Taille" : "Poids"}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className={`h-8 w-8 p-0 rounded-full ${isPrivate ? "bg-red-600 hover:bg-red-500" : "bg-emerald-600 hover:bg-emerald-500"} text-white`}
-                              onClick={() => {
-                                const priv = { ...(form.getValues("privacy") || {}) } as Record<string, boolean>;
-                                if (isPrivate) delete priv[k]; else priv[k] = true;
-                                form.setValue("privacy", priv, { shouldDirty: true });
-                              }}
-                              title={isPrivate ? "Privé" : "Public"}
-                            >
-                              {isPrivate ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
+
+                  {/* Ligne 3: Besoins (kcal) / Affichage objectifs */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="needs_kcal"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Besoins (kcal/j)</FormLabel>
+                          <FormControl>
+                            <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="needs_display_mode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Affichage objectifs</FormLabel>
+                          <FormControl>
+                            <Select
+                              value={field.value ?? ""}
+                              onValueChange={(v) => field.onChange(v as any)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Mode d'affichage" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="absolute">Valeurs absolues</SelectItem>
+                                <SelectItem value="percentage">Pourcentages</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Ligne 4: Protéines / Glucides / Lipides */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="needs_protein_g"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Protéines (g/j)</FormLabel>
+                          <FormControl>
+                            <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="needs_carbs_g"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Glucides (g/j)</FormLabel>
+                          <FormControl>
+                            <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="needs_fat_g"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Lipides (g/j)</FormLabel>
+                          <FormControl>
+                            <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Confidentialité par champ (icônes cadenas) - masquée en UI */}
+                  {showPrivacy && (
+                    <div className="col-span-full rounded-md border p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <div className="font-medium">Confidentialité</div>
+                          <div className="text-xs text-muted-foreground">Cadenas vert = public, rouge = privé.</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {(["age", "height_cm", "weight_kg"] as const).map((k) => {
+                          const isPrivate = !!(form.getValues("privacy") as any)?.[k];
+                          return (
+                            <div key={k} className="flex items-center justify-between gap-2 border rounded-md px-3 py-2">
+                              <span className="text-sm">{k === "age" ? "Âge" : k === "height_cm" ? "Taille" : "Poids"}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                className={`h-8 w-8 p-0 rounded-full ${isPrivate ? "bg-red-600 hover:bg-red-500" : "bg-emerald-600 hover:bg-emerald-500"} text-white`}
+                                onClick={() => {
+                                  const priv = { ...(form.getValues("privacy") || {}) } as Record<string, boolean>;
+                                  if (isPrivate) delete priv[k]; else priv[k] = true;
+                                  form.setValue("privacy", priv, { shouldDirty: true });
+                                }}
+                                title={isPrivate ? "Privé" : "Public"}
+                              >
+                                {isPrivate ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="col-span-full flex gap-2">
                     <Button type="submit" disabled={upsert.isPending}>{upsert.isPending ? "Enregistrement…" : "Enregistrer"}</Button>
