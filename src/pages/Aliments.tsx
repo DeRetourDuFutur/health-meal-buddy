@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 // (sélecteur retiré avec la simplification de la barre d'outils)
-import { useEffect, useMemo, useRef, useState, useId } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAlimentsPaged, useCreateAliment, useDeleteAliment, useUpdateAliment } from "@/hooks/useAliments";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -95,7 +95,7 @@ function EditAlimentDialog({
   submitting: boolean;
   onSubmit: (values: AlimentInput) => void;
 }) {
-  const idBase = `edit-aliment-${a?.id ?? useId()}`;
+  const idBase = `edit-aliment-${a?.id ?? "temp"}`;
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
