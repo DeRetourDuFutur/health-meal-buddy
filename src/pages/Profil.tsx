@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
+import { AccessibleDialog } from "@/components/ui/AccessibleDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -817,12 +818,13 @@ const Profil = () => {
         </div>
 
         {/* Confirmation dialog */}
-        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <DialogContent aria-describedby="profile-confirm-desc">
-            <DialogHeader>
-              <DialogTitle>Confirmer les modifications</DialogTitle>
-            </DialogHeader>
-            <DialogDescription id="profile-confirm-desc" className="sr-only">Un récapitulatif des champs modifiés est affiché ci-dessous.</DialogDescription>
+        <AccessibleDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          idBase="profile-confirm"
+          title="Confirmer les modifications"
+          description="Vérifiez les changements avant d’enregistrer"
+          body={
             <div className="space-y-2 text-sm">
               {Object.keys(changes).length === 0 ? (
                 <div>Aucune modification détectée.</div>
@@ -852,12 +854,14 @@ const Profil = () => {
                 </ul>
               )}
             </div>
+          }
+          footer={
             <DialogFooter>
               <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Annuler</Button>
               <Button onClick={doSave} disabled={upsert.isPending}>{upsert.isPending ? "Enregistrement…" : "Confirmer"}</Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          }
+        />
       </div>
     </AppLayout>
   );

@@ -1,7 +1,8 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { AccessibleDialog } from "@/components/ui/AccessibleDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -94,8 +95,7 @@ function EditAlimentDialog({
   submitting: boolean;
   onSubmit: (values: AlimentInput) => void;
 }) {
-  const fallbackId = useId();
-  const descId = `edit-aliment-desc-${a?.id ?? fallbackId}`;
+  const idBase = `edit-aliment-${a?.id ?? useId()}`;
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
@@ -103,26 +103,27 @@ function EditAlimentDialog({
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent aria-describedby={descId}>
-        <DialogHeader>
-          <DialogTitle>Modifier l’aliment</DialogTitle>
-        </DialogHeader>
-        <DialogDescription id={descId} className="sr-only">
-          Modifier l’aliment {a.name}. Les changements sont enregistrés à la sauvegarde.
-        </DialogDescription>
-        <AlimentForm
-          defaultValues={{
-            name: a.name,
-            kcal_per_100g: Number(a.kcal_per_100g),
-            protein_g_per_100g: Number(a.protein_g_per_100g),
-            carbs_g_per_100g: Number(a.carbs_g_per_100g),
-            fat_g_per_100g: Number(a.fat_g_per_100g),
-            notes: a.notes ?? "",
-          }}
-          onSubmit={onSubmit}
-          submitting={submitting}
-        />
-      </DialogContent>
+      <AccessibleDialog
+        open={isOpen}
+        onOpenChange={onOpenChange}
+        idBase={idBase}
+        title="Modifier l’aliment"
+        description={`Modifier l’aliment « ${a.name} »`}
+        body={
+          <AlimentForm
+            defaultValues={{
+              name: a.name,
+              kcal_per_100g: Number(a.kcal_per_100g),
+              protein_g_per_100g: Number(a.protein_g_per_100g),
+              carbs_g_per_100g: Number(a.carbs_g_per_100g),
+              fat_g_per_100g: Number(a.fat_g_per_100g),
+              notes: a.notes ?? "",
+            }}
+            onSubmit={onSubmit}
+            submitting={submitting}
+          />
+        }
+      />
     </Dialog>
   );
 }
@@ -275,19 +276,20 @@ const Aliments = () => {
               <DialogTrigger asChild>
                 <Button>Nouveau</Button>
               </DialogTrigger>
-              <DialogContent aria-describedby="create-aliment-desc">
-                <DialogHeader>
-                  <DialogTitle>Nouvel aliment</DialogTitle>
-                </DialogHeader>
-                <DialogDescription id="create-aliment-desc" className="sr-only">
-                  Créez un nouvel aliment puis enregistrez pour confirmer.
-                </DialogDescription>
-                <AlimentForm
-                  defaultValues={{ name: "", kcal_per_100g: 0, protein_g_per_100g: 0, carbs_g_per_100g: 0, fat_g_per_100g: 0, notes: "" }}
-                  onSubmit={onCreate}
-                  submitting={createMut.isPending}
-                />
-              </DialogContent>
+              <AccessibleDialog
+                open={openCreate}
+                onOpenChange={setOpenCreate}
+                idBase="create-aliment"
+                title="Nouvel aliment"
+                description="Créer un nouvel aliment dans le catalogue"
+                body={
+                  <AlimentForm
+                    defaultValues={{ name: "", kcal_per_100g: 0, protein_g_per_100g: 0, carbs_g_per_100g: 0, fat_g_per_100g: 0, notes: "" }}
+                    onSubmit={onCreate}
+                    submitting={createMut.isPending}
+                  />
+                }
+              />
             </Dialog>
           )}
         </div>

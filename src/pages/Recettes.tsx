@@ -1,7 +1,8 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { AccessibleDialog } from "@/components/ui/AccessibleDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,14 +36,14 @@ function RecipeForm({ defaultValues, submitting, onSubmit }:{ defaultValues: Rec
         <Label htmlFor="notes">Notes</Label>
         <Input id="notes" placeholder="Notes (optionnel)" {...register("notes")} />
       </div>
-      <DialogFooter>
+      <div className="flex justify-end">
         <Button type="submit" disabled={submitting}>{submitting ? "Enregistrement..." : "Enregistrer"}</Button>
-      </DialogFooter>
+      </div>
     </form>
   );
 }
 
-function ItemsEditor({ recipe, onClose }:{ recipe: RecipeWithItems; onClose: ()=>void }) {
+function ItemsEditor({ recipe, onClose }: { recipe: RecipeWithItems; onClose: () => void }) {
   const { toast } = useToast();
   const { data: aliments } = useAliments();
   const addItem = useAddRecipeItem();
@@ -246,13 +247,14 @@ const Recettes = () => {
           <h1 className="text-3xl font-bold">Recettes</h1>
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger asChild><Button>Nouvelle recette</Button></DialogTrigger>
-            <DialogContent aria-describedby="create-recipe-desc">
-              <DialogHeader><DialogTitle>Nouvelle recette</DialogTitle></DialogHeader>
-              <DialogDescription id="create-recipe-desc" className="sr-only">
-                Créez une recette en indiquant son nom, le nombre de portions et des notes éventuelles.
-              </DialogDescription>
-              <RecipeForm defaultValues={{ name: "", servings: 1, notes: "" }} submitting={createMut.isPending} onSubmit={onCreate} />
-            </DialogContent>
+            <AccessibleDialog
+              open={openCreate}
+              onOpenChange={setOpenCreate}
+              idBase="create-recipe"
+              title="Nouvelle recette"
+              description="Créer une nouvelle recette"
+              body={<RecipeForm defaultValues={{ name: "", servings: 1, notes: "" }} submitting={createMut.isPending} onSubmit={onCreate} />}
+            />
           </Dialog>
         </div>
 
@@ -303,26 +305,29 @@ const Recettes = () => {
                                 onOpenChange={(v) => setOpenEdit({ open: v, recipe: v ? r : null })}
                               >
                                 <DialogTrigger asChild><Button variant="outline" size="sm">Éditer</Button></DialogTrigger>
-                                <DialogContent className="max-w-4xl overflow-y-auto max-h-[85vh]" aria-describedby={`edit-recipe-desc-${r.id}`}>
-                                  <DialogHeader><DialogTitle>Éditer: {r.name}</DialogTitle></DialogHeader>
-                                  <DialogDescription id={`edit-recipe-desc-${r.id}`} className="sr-only">
-                                    Modifiez les détails de la recette et ses ingrédients, puis enregistrez vos changements.
-                                  </DialogDescription>
-                                  <div className="grid md:grid-cols-2 gap-6">
-                                    <div>
-                                      <h3 className="font-semibold mb-2">Détails</h3>
-                                      <RecipeForm
-                                        defaultValues={{ name: r.name, servings: Number(r.servings), notes: r.notes ?? "" }}
-                                        submitting={updateMut.isPending}
-                                        onSubmit={onUpdate}
-                                      />
+                                <AccessibleDialog
+                                  open={openEdit.open && openEdit.recipe?.id === r.id}
+                                  onOpenChange={(v) => setOpenEdit({ open: v, recipe: v ? r : null })}
+                                  idBase={`edit-recipe-${r.id}`}
+                                  title="Éditer la recette"
+                                  description={`Édition de la recette « ${r.name} »`}
+                                  body={
+                                    <div className="grid md:grid-cols-2 gap-6 max-w-4xl overflow-y-auto max-h-[85vh]">
+                                      <div>
+                                        <h3 className="font-semibold mb-2">Détails</h3>
+                                        <RecipeForm
+                                          defaultValues={{ name: r.name, servings: Number(r.servings), notes: r.notes ?? "" }}
+                                          submitting={updateMut.isPending}
+                                          onSubmit={onUpdate}
+                                        />
+                                      </div>
+                                      <div>
+                                        <h3 className="font-semibold mb-2">Ingrédients</h3>
+                                        <ItemsEditor recipe={r} onClose={() => setOpenEdit({ open: false, recipe: null })} />
+                                      </div>
                                     </div>
-                                    <div>
-                                      <h3 className="font-semibold mb-2">Ingrédients</h3>
-                                      <ItemsEditor recipe={r} onClose={() => setOpenEdit({ open: false, recipe: null })} />
-                                    </div>
-                                  </div>
-                                </DialogContent>
+                                  }
+                                />
                               </Dialog>
                               <Button variant="destructive" size="sm" onClick={() => onDelete(r)}>Supprimer</Button>
                             </div>
