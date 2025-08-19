@@ -38,12 +38,12 @@ export function useCreateAliment() {
   });
 }
 
-export function useUpdateAliment(paramsKey?: AlimentsQueryParams) {
+export function useUpdateAliment(_paramsKey?: AlimentsQueryParams) {
   const qc = useQueryClient();
   return useMutation<Aliment, Error, { id: string; input: AlimentInput }>({
     mutationFn: ({ id, input }) => updateAliment(id, input),
     onMutate: async ({ id, input }) => {
-  const keyFilter = paramsKey ? ["aliments", paramsKey] : ["aliments"];
+  const keyFilter = ["aliments"] as const;
   await qc.cancelQueries({ queryKey: keyFilter });
   const snapshot = qc.getQueriesData<unknown>({ queryKey: keyFilter });
       for (const [key, data] of snapshot) {
@@ -70,8 +70,7 @@ export function useUpdateAliment(paramsKey?: AlimentsQueryParams) {
       for (const [key, prev] of snap) qc.setQueryData(key, prev);
     },
     onSettled: async () => {
-      const keyFilter = paramsKey ? ["aliments", paramsKey] : ["aliments"];
-      await qc.invalidateQueries({ queryKey: keyFilter, refetchType: "active" });
+  await qc.invalidateQueries({ queryKey: ["aliments"], refetchType: "active" });
     },
   });
 }
