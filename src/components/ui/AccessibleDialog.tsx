@@ -36,20 +36,18 @@ export function AccessibleDialog({
   trigger,
 }: AccessibleDialogProps) {
   const descId = `${idBase}-desc`;
+  const descText = description ?? title ?? "Boîte de dialogue";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent aria-describedby={description ? descId : undefined}>
+      <DialogContent aria-describedby={descId}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-
-        {description ? (
-          <DialogDescription id={descId} className="sr-only">
-            {description}
-          </DialogDescription>
-        ) : null}
+        <DialogDescription id={descId} className="sr-only">
+          {descText}
+        </DialogDescription>
 
         {body ?? children}
         {footer}
