@@ -286,6 +286,60 @@ Commit
 
 ---
 
+## Étape 20 — Aliments v3, Préférences, Accessibilité des Dialogs (en cours)
+
+Objectifs
+- Corriger définitivement les erreurs d’écriture des préférences (400) et garantir l’exclusivité like/dislike/allergy.
+- Simplifier la barre d’outils: une recherche globale (debounce) + onglets catégories; mémoriser la dernière catégorie (« Option B »).
+- Corriger le saut intempestif de l’onglet « All » vers « Fruits ».
+- Améliorer l’ergonomie: bouton Clear, icônes d’actions admin, alignements, emojis.
+- Résoudre les warnings ARIA Radix Dialog de manière centralisée et durable.
+
+Actions
+- Data/DB (`src/lib/db/aliments.ts`)
+  - `updateAliment(id, input)`: passe à un pattern « update puis select » afin d’éviter l’erreur HTTP 406 rencontrée lors d’un `update().select().single()`.
+  - `listCategories()`: récupération des catégories distinctes à partir de la colonne `category` (si présente), nettoyage et tri.
+- Hooks (`src/hooks/useAliments.ts`)
+  - `useUpdateAliment`: mise à jour optimiste des listes et des pages (map par id) et invalidation de toutes les requêtes préfixées `['aliments']` pour garantir la cohérence post‑refetch.
+  - Création et suppression inchangées (invalidations `['aliments']`).
+- UI Dialogs
+  - Création du composant `src/components/ui/AccessibleDialog.tsx`:
+    - Rend toujours un `DialogDescription` sr‑only avec id stable `${idBase}-desc` et pose `aria-describedby` de façon inconditionnelle.
+    - Expose un prop `trigger` pour intégrer le bouton d’ouverture et éviter l’imbrication de plusieurs `Dialog`.
+  - Migrations: `src/pages/Aliments.tsx`, `src/pages/Recettes.tsx`, `src/pages/Profil.tsx` remplacent les paires `Dialog/Trigger` locales par `AccessibleDialog` + `trigger`.
+  - Palette de commandes: `src/components/ui/command.tsx` ajoute un `DialogDescription` sr‑only et `aria-describedby`.
+- UI Aliments (`src/pages/Aliments.tsx`)
+  - Recherche unique avec debounce 300ms + bouton « X » pour effacer.
+  - Onglets catégories (slugify/unslugify) avec persistance de la dernière catégorie lorsque la recherche est vide (Option B).
+  - Correction du « saut vers Fruits » en supprimant l’effet qui forçait la catégorie selon les résultats.
+  - Actions admin iconifiées (éditer/supprimer), colonnes alignées; préférences exclusives (👍 👎 🚫) avec toasts.
+
+Bugs rencontrés et solutions proposées
+- Écritures préférences HTTP 400: alignement du schéma (ex: aliment_id vs food_id) et upsert direct dans `user_food_preferences` (hors fichiers listés ci‑dessus; via hooks dédiés).
+- 406 sur update aliment: contourné par « update » puis « select ».
+- Warnings ARIA sur Dialogs: centralisation via `AccessibleDialog` (Description sr‑only systématique + id stable), suppression des Dialog imbriqués, description ajoutée à `CommandDialog`.
+- Liste non rafraîchie après édition: élargissement de la stratégie d’optimistic update + invalidation pour couvrir toutes les variations de la clé React Query.
+
+État des lieux au moment présent
+- L’utilisateur remonte que le warning ARIA « Missing Description or aria-describedby={undefined} » persiste à l’ouverture du Dialog « Éditer » des aliments.
+- Après un toast « Modifié », certaines modifications ne seraient pas visibles immédiatement dans la liste selon le contexte.
+- Par consigne, toute action de code est suspendue jusqu’à analyse par un autre agent; la documentation est mise à jour pour faciliter ce diagnostic.
+
+Commits (sélection Étape 20)
+- `feat(ui): add AccessibleDialog with stable description ids; ensure aria-describedby only when provided; description rendered as sibling to header`
+- `refactor(aliments,recettes,profil): migrate all dialogs to AccessibleDialog; remove ad-hoc aria-describedby wiring; keep behavior unchanged`
+- `fix(a11y): add sr-only description to CommandDialog and set aria-describedby; remove conditional useId in Aliments EditAlimentDialog`
+- `fix(dialog): ensure every DialogContent has a Description or aria-describedby — add sr-only description to CommandDialog; remove nested Dialog roots by moving triggers into AccessibleDialog (Aliments, Recettes)`
+- `fix(a11y): always render sr-only DialogDescription in AccessibleDialog and set aria-describedby unconditionally; eliminates Radix DescriptionWarning`
+- `fix(aliments): make optimistic update + invalidation cover all 'aliments*' queries to ensure list reflects edits immediately and after refetch`
+
+Prochaines pistes d’analyse (pour l’agent suivant)
+- Inspecter à l’exécution le DOM du Dialog « Modifier l’aliment » pour vérifier qu’un `DialogDescription` avec id `${idBase}-desc` est bien présent en sibling du header et que `aria-describedby` de `DialogContent` le référence.
+- Traquer toute autre source de DialogContent (ex: composants tiers) potentiellement montés sans description.
+- Valider que la clé React Query utilisée dans la page correspond bien à celles invalidées (préfixe `['aliments']`).
+
+---
+
 Notes transverses
 - Stack: Vite 5, React 18, TypeScript 5, Tailwind 3, shadcn/ui, React Router v6.30.1, @tanstack/react-query v5, Supabase JS v2, react-hook-form, zod, next-themes.
 - ENV: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; scripts Node: `SUPABASE_SERVICE_ROLE`.

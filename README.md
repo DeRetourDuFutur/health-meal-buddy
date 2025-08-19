@@ -14,7 +14,46 @@ Le cahier des charges complet est disponible dans docs/CDC.md.
 	- 20.3 — Liste de courses v1: agrégation par semaine, export simple.
 	- 20.4 — Statistiques v1: premiers graphiques (apports/j, macros, tendance IMC).
 
-## Synthèse d’avancement — Étapes 17–19.2
+## Synthèse d’avancement — Étapes 17–20
+
+### Étape 20 — Aliments v3, Préférences, Accessibilité Dialogs (en cours)
+
+- Objectifs
+	- Corriger les erreurs 400 d’écriture des préférences et fiabiliser le flux J’aime/J’aime pas/Allergie.
+	- Simplifier la barre d’outils: ne garder qu’un champ de recherche global avec debounce; onglets par catégories.
+	- « Option B »: mémoriser la dernière catégorie et la restaurer quand la recherche est vidée.
+	- Corriger le bug de retour automatique de l’onglet « All » vers « Fruits ».
+	- Améliorer l’UI (icônes d’actions, alignements, bouton Clear dans la recherche, thumbs down, etc.).
+	- Éviter le 406 sur update en faisant update puis select; mise à jour optimiste côté client.
+	- Centraliser l’accessibilité des Dialogs (Radix UI) via un composant `AccessibleDialog` garantissant `aria-describedby` stable et jamais `undefined`.
+
+- Actions clés (code)
+	- Data/DB
+		- `src/lib/db/aliments.ts`: `updateAliment` passe à un pattern « update puis select » pour éviter le 406; catégories distinctes via `listCategories()`; pagination/recherche/tri conservés.
+	- Hooks
+		- `src/hooks/useAliments.ts`: `useUpdateAliment()` avec mise à jour optimiste (listes et pages) + invalidation couvrant toutes les clés préfixées `['aliments']`.
+	- UI Dialogs
+		- Nouveau `src/components/ui/AccessibleDialog.tsx`: enveloppe Radix Dialog avec Description sr‑only systématique et `aria-describedby` stable (`${idBase}-desc`), `trigger` intégré pour éviter les Dialog imbriqués.
+		- Migrations: `src/pages/Aliments.tsx`, `src/pages/Recettes.tsx`, `src/pages/Profil.tsx` utilisent `AccessibleDialog` (création/édition/confirmation).
+		- Command palette: `src/components/ui/command.tsx` ajoute une Description sr‑only.
+	- UI Aliments
+		- Barre de recherche unique, bouton « X » pour effacer, onglets catégories avec slug; « Option B » (restaure la catégorie après effacement).
+		- Icônes d’actions admin (édition/suppression) et colonnes alignées; préférences exclusives (👍 👎 🚫) avec toasts.
+
+- Problèmes rencontrés et solutions
+	- Écritures préférences 400: correction du schéma et des colonnes, upsert direct dans `user_food_preferences` (côté hooks dédiés).
+	- 406 sur update aliment: remplacé par « update puis select » (évite `.select().single()` pendant `update`).
+	- Warnings ARIA sur Dialog: création d’`AccessibleDialog` (Description sr‑only toujours rendue) + suppression des Dialog imbriqués via `trigger` intégré; ajout d’une Description à CommandDialog.
+	- Mise à jour non visible après édition: élargissement de l’optimistic update + invalidation à toutes les queries `['aliments', ...]`.
+
+- Fichiers principaux ajoutés/modifiés à l’étape 20
+	- Ajout: `src/components/ui/AccessibleDialog.tsx` (A11y centralisée des dialogs).
+	- Modifs: `src/pages/Aliments.tsx`, `src/pages/Recettes.tsx`, `src/pages/Profil.tsx` (migrations vers AccessibleDialog, UI, recherche/onglets), `src/components/ui/command.tsx` (Description), `src/hooks/useAliments.ts` (optimistic update + invalidation), `src/lib/db/aliments.ts` (update/select).
+
+- État des lieux à l’instant T (fourni par l’utilisateur)
+	- Lors de l’ouverture du dialog « Éditer » (Aliments), des warnings ARIA « Missing Description or aria-describedby={undefined} » sont toujours visibles en console.
+	- Après l’édition, un toast « Modifié » apparaît mais certaines modifications semblent ne pas se refléter immédiatement dans la liste selon le contexte.
+	- Action gelée: aucune autre modification de code ne sera effectuée tant que l’analyse externe n’est pas terminée.
 
 ### Étape 17 — Aliments v2: recherche, filtres, tri, pagination, URL sync
 - Objectifs
