@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -19,6 +20,8 @@ type AccessibleDialogProps = {
   body?: React.ReactNode;
   footer?: React.ReactNode;
   children?: React.ReactNode; // alternative à body
+  /** bouton ou élément déclencheur optionnel */
+  trigger?: React.ReactNode;
 };
 
 export function AccessibleDialog({
@@ -30,11 +33,13 @@ export function AccessibleDialog({
   body,
   footer,
   children,
+  trigger,
 }: AccessibleDialogProps) {
   const descId = `${idBase}-desc`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent aria-describedby={description ? descId : undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

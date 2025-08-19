@@ -245,17 +245,15 @@ const Recettes = () => {
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-3xl font-bold">Recettes</h1>
-          <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-            <DialogTrigger asChild><Button>Nouvelle recette</Button></DialogTrigger>
-            <AccessibleDialog
-              open={openCreate}
-              onOpenChange={setOpenCreate}
-              idBase="create-recipe"
-              title="Nouvelle recette"
-              description="Créer une nouvelle recette"
-              body={<RecipeForm defaultValues={{ name: "", servings: 1, notes: "" }} submitting={createMut.isPending} onSubmit={onCreate} />}
-            />
-          </Dialog>
+          <AccessibleDialog
+            open={openCreate}
+            onOpenChange={setOpenCreate}
+            idBase="create-recipe"
+            title="Nouvelle recette"
+            description="Créer une nouvelle recette"
+            trigger={<Button>Nouvelle recette</Button>}
+            body={<RecipeForm defaultValues={{ name: "", servings: 1, notes: "" }} submitting={createMut.isPending} onSubmit={onCreate} />}
+          />
         </div>
 
         {isLoading && <p className="text-muted-foreground">Chargement...</p>}
@@ -300,35 +298,30 @@ const Recettes = () => {
                           <TableCell className="text-right">{totals.perServing.fat_g.toFixed(1)}</TableCell>
                           <TableCell>
                             <div className="flex gap-2 justify-end">
-                              <Dialog
+                              <AccessibleDialog
                                 open={openEdit.open && openEdit.recipe?.id === r.id}
                                 onOpenChange={(v) => setOpenEdit({ open: v, recipe: v ? r : null })}
-                              >
-                                <DialogTrigger asChild><Button variant="outline" size="sm">Éditer</Button></DialogTrigger>
-                                <AccessibleDialog
-                                  open={openEdit.open && openEdit.recipe?.id === r.id}
-                                  onOpenChange={(v) => setOpenEdit({ open: v, recipe: v ? r : null })}
-                                  idBase={`edit-recipe-${r.id}`}
-                                  title="Éditer la recette"
-                                  description={`Édition de la recette « ${r.name} »`}
-                                  body={
-                                    <div className="grid md:grid-cols-2 gap-6 max-w-4xl overflow-y-auto max-h-[85vh]">
-                                      <div>
-                                        <h3 className="font-semibold mb-2">Détails</h3>
-                                        <RecipeForm
-                                          defaultValues={{ name: r.name, servings: Number(r.servings), notes: r.notes ?? "" }}
-                                          submitting={updateMut.isPending}
-                                          onSubmit={onUpdate}
-                                        />
-                                      </div>
-                                      <div>
-                                        <h3 className="font-semibold mb-2">Ingrédients</h3>
-                                        <ItemsEditor recipe={r} onClose={() => setOpenEdit({ open: false, recipe: null })} />
-                                      </div>
+                                idBase={`edit-recipe-${r.id}`}
+                                title="Éditer la recette"
+                                description={`Édition de la recette « ${r.name} »`}
+                                trigger={<Button variant="outline" size="sm">Éditer</Button>}
+                                body={
+                                  <div className="grid md:grid-cols-2 gap-6 max-w-4xl overflow-y-auto max-h-[85vh]">
+                                    <div>
+                                      <h3 className="font-semibold mb-2">Détails</h3>
+                                      <RecipeForm
+                                        defaultValues={{ name: r.name, servings: Number(r.servings), notes: r.notes ?? "" }}
+                                        submitting={updateMut.isPending}
+                                        onSubmit={onUpdate}
+                                      />
                                     </div>
-                                  }
-                                />
-                              </Dialog>
+                                    <div>
+                                      <h3 className="font-semibold mb-2">Ingrédients</h3>
+                                      <ItemsEditor recipe={r} onClose={() => setOpenEdit({ open: false, recipe: null })} />
+                                    </div>
+                                  </div>
+                                }
+                              />
                               <Button variant="destructive" size="sm" onClick={() => onDelete(r)}>Supprimer</Button>
                             </div>
                           </TableCell>

@@ -97,34 +97,32 @@ function EditAlimentDialog({
 }) {
   const idBase = `edit-aliment-${a?.id ?? "temp"}`;
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
+    <AccessibleDialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+      idBase={idBase}
+      title="Modifier l’aliment"
+      description={`Modifier l’aliment « ${a.name} »`}
+      trigger={
         <Button variant="outline" size="sm" aria-label="Éditer" title="Éditer">
           <Pencil className="h-4 w-4" />
         </Button>
-      </DialogTrigger>
-      <AccessibleDialog
-        open={isOpen}
-        onOpenChange={onOpenChange}
-        idBase={idBase}
-        title="Modifier l’aliment"
-        description={`Modifier l’aliment « ${a.name} »`}
-        body={
-          <AlimentForm
-            defaultValues={{
-              name: a.name,
-              kcal_per_100g: Number(a.kcal_per_100g),
-              protein_g_per_100g: Number(a.protein_g_per_100g),
-              carbs_g_per_100g: Number(a.carbs_g_per_100g),
-              fat_g_per_100g: Number(a.fat_g_per_100g),
-              notes: a.notes ?? "",
-            }}
-            onSubmit={onSubmit}
-            submitting={submitting}
-          />
-        }
-      />
-    </Dialog>
+      }
+      body={
+        <AlimentForm
+          defaultValues={{
+            name: a.name,
+            kcal_per_100g: Number(a.kcal_per_100g),
+            protein_g_per_100g: Number(a.protein_g_per_100g),
+            carbs_g_per_100g: Number(a.carbs_g_per_100g),
+            fat_g_per_100g: Number(a.fat_g_per_100g),
+            notes: a.notes ?? "",
+          }}
+          onSubmit={onSubmit}
+          submitting={submitting}
+        />
+      }
+    />
   );
 }
 
@@ -272,25 +270,21 @@ const Aliments = () => {
         <div className="mb-4 flex items-center justify-between gap-4">
           <h1 className="text-3xl font-bold">Aliments</h1>
           {isAdmin && (
-            <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-              <DialogTrigger asChild>
-                <Button>Nouveau</Button>
-              </DialogTrigger>
-              <AccessibleDialog
-                open={openCreate}
-                onOpenChange={setOpenCreate}
-                idBase="create-aliment"
-                title="Nouvel aliment"
-                description="Créer un nouvel aliment dans le catalogue"
-                body={
-                  <AlimentForm
-                    defaultValues={{ name: "", kcal_per_100g: 0, protein_g_per_100g: 0, carbs_g_per_100g: 0, fat_g_per_100g: 0, notes: "" }}
-                    onSubmit={onCreate}
-                    submitting={createMut.isPending}
-                  />
-                }
-              />
-            </Dialog>
+            <AccessibleDialog
+              open={openCreate}
+              onOpenChange={setOpenCreate}
+              idBase="create-aliment"
+              title="Nouvel aliment"
+              description="Créer un nouvel aliment dans le catalogue"
+              trigger={<Button>Nouveau</Button>}
+              body={
+                <AlimentForm
+                  defaultValues={{ name: "", kcal_per_100g: 0, protein_g_per_100g: 0, carbs_g_per_100g: 0, fat_g_per_100g: 0, notes: "" }}
+                  onSubmit={onCreate}
+                  submitting={createMut.isPending}
+                />
+              }
+            />
           )}
         </div>
 
