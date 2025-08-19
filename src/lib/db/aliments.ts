@@ -5,6 +5,7 @@ export type Aliment = {
   id: string;
   user_id: string;
   name: string;
+  category?: string; // ajouté côté DB (catalogue commun) — optionnel pour compat ascendant
   kcal_per_100g: number;
   protein_g_per_100g: number;
   carbs_g_per_100g: number;
@@ -60,6 +61,7 @@ export type AlimentsFilters = {
 };
 export type AlimentsQueryParams = {
   q?: string;
+  category?: string; // 'All' ou nom de catégorie
   filters?: AlimentsFilters;
   sort?: AlimentsSort; // on n'applique que le premier élément
   page?: number; // défaut 1
@@ -101,6 +103,7 @@ function applyRange(
 
 export async function listAlimentsPaged(params: AlimentsQueryParams = {}): Promise<AlimentsPagedResult> {
   const q = params.q?.trim() ?? "";
+  const category = params.category && params.category.trim() ? params.category.trim() : undefined;
   const filters = params.filters ?? {};
   const sort = (params.sort && params.sort.length > 0)
     ? params.sort[0]
@@ -111,6 +114,10 @@ export async function listAlimentsPaged(params: AlimentsQueryParams = {}): Promi
   let qb = supabase
     .from("aliments")
     .select("*", { count: "exact" });
+
+  if (category && category.toLowerCase() !== "all") {
+    qb = qb.eq("category", category);
+  }
 
   if (q) {
     qb = qb.ilike("name", `%${q}%`);
@@ -143,6 +150,23 @@ export async function listAlimentsPaged(params: AlimentsQueryParams = {}): Promi
   };
 }
 
+// Retourne les catégories distinctes (triées)
+export async function listCategories(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("aliments")
+    .select("category")
+    .not("category", "is", null)
+    .order("category", { ascending: true });
+  if (error) throw new Error(mapPgErrorToMessage(error.code, error.message));
+  const rows = (data ?? []) as { category?: string | null }[];
+  const set = new Set<string>();
+  for (const r of rows) {
+    const c = (r.category ?? "").trim();
+    if (c) set.add(c);
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
 export async function createAliment(input: AlimentInput): Promise<Aliment> {
   const session = (await supabase.auth.getSession()).data.session;
   const userId = session?.user.id;
@@ -166,7 +190,8 @@ export async function createAliment(input: AlimentInput): Promise<Aliment> {
 }
 
 export async function updateAliment(id: string, input: AlimentInput): Promise<Aliment> {
-  const { data, error } = await supabase
+  // Étape 1: update sans demander la représentation pour éviter les erreurs 406
+  const { error: updError } = await supabase
     .from("aliments")
     .update({
       name: input.name,
@@ -176,10 +201,16 @@ export async function updateAliment(id: string, input: AlimentInput): Promise<Al
       fat_g_per_100g: input.fat_g_per_100g,
       notes: input.notes && input.notes.length > 0 ? input.notes : null,
     })
-    .eq("id", id)
+    .eq("id", id);
+  if (updError) throw new Error(mapPgErrorToMessage(updError.code, updError.message));
+
+  // Étape 2: relire la ligne mise à jour
+  const { data, error: selError } = await supabase
+    .from("aliments")
     .select("*")
+    .eq("id", id)
     .single();
-  if (error) throw new Error(mapPgErrorToMessage(error.code, error.message));
+  if (selError) throw new Error(mapPgErrorToMessage(selError.code, selError.message));
   return data as Aliment;
 }
 

@@ -1,18 +1,23 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useMemo, useState } from "react";
+// (sélecteur retiré avec la simplification de la barre d'outils)
+import { useEffect, useMemo, useRef, useState, useId } from "react";
 import { useAlimentsPaged, useCreateAliment, useDeleteAliment, useUpdateAliment } from "@/hooks/useAliments";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlimentInput, alimentSchema, Aliment } from "@/lib/db/aliments";
+import { AlimentInput, alimentSchema, Aliment, listCategories } from "@/lib/db/aliments";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "react-router-dom";
+import { useFoodPreferences, useRemoveFoodPreference, useSetFoodPreference } from "@/hooks/useFoodPreferences";
+import { useAuth } from "@/context/AuthContext";
+import { useMyProfile } from "@/hooks/useProfile";
+import { cn } from "@/lib/utils";
+import { X, Pencil, Trash } from "lucide-react";
 
 function AlimentForm({
   defaultValues,
@@ -76,30 +81,74 @@ function parseNumber(v: string | null): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function EditAlimentDialog({
+  a,
+  isOpen,
+  onOpenChange,
+  submitting,
+  onSubmit,
+}: {
+  a: Aliment;
+  isOpen: boolean;
+  onOpenChange: (v: boolean) => void;
+  submitting: boolean;
+  onSubmit: (values: AlimentInput) => void;
+}) {
+  const fallbackId = useId();
+  const descId = `edit-aliment-desc-${a?.id ?? fallbackId}`;
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" aria-label="Éditer" title="Éditer">
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent aria-describedby={descId}>
+        <DialogHeader>
+          <DialogTitle>Modifier l’aliment</DialogTitle>
+        </DialogHeader>
+        <DialogDescription id={descId} className="sr-only">
+          Modifier l’aliment {a.name}. Les changements sont enregistrés à la sauvegarde.
+        </DialogDescription>
+        <AlimentForm
+          defaultValues={{
+            name: a.name,
+            kcal_per_100g: Number(a.kcal_per_100g),
+            protein_g_per_100g: Number(a.protein_g_per_100g),
+            carbs_g_per_100g: Number(a.carbs_g_per_100g),
+            fat_g_per_100g: Number(a.fat_g_per_100g),
+            notes: a.notes ?? "",
+          }}
+          onSubmit={onSubmit}
+          submitting={submitting}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const Aliments = () => {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const { data: myProfile } = useMyProfile();
+  const authRole = (user as any)?.user_metadata?.role || (user as any)?.role || (user as any)?.app_metadata?.role || (((user as any)?.app_metadata?.roles?.includes?.("admin")) ? "admin" : undefined);
+  const profileRole = (myProfile as any)?.user?.user_metadata?.role || (myProfile as any)?.user_metadata?.role || (myProfile as any)?.role;
+  const isAdmin = authRole === "admin" || profileRole === "admin";
 
   // URL → params
   const urlParams = useMemo(() => {
     const q = searchParams.get("q") ?? "";
-    const kcalMin = parseNumber(searchParams.get("kcalMin"));
-    const kcalMax = parseNumber(searchParams.get("kcalMax"));
-    const protMin = parseNumber(searchParams.get("protMin"));
-    const protMax = parseNumber(searchParams.get("protMax"));
-    const carbMin = parseNumber(searchParams.get("carbMin"));
-    const carbMax = parseNumber(searchParams.get("carbMax"));
-    const fatMin = parseNumber(searchParams.get("fatMin"));
-    const fatMax = parseNumber(searchParams.get("fatMax"));
+    const categorySlug = (searchParams.get("category") ?? "all").toLowerCase();
     const sortRaw = searchParams.get("sort") ?? "name:asc";
-  const [by = "name", dirRaw = "asc"] = sortRaw.split(":");
-  const dir = (dirRaw === "desc" ? "desc" : "asc") as "asc" | "desc";
+    const [by = "name", dirRaw = "asc"] = sortRaw.split(":");
+    const dir = (dirRaw === "desc" ? "desc" : "asc") as "asc" | "desc";
     const page = parseNumber(searchParams.get("page")) ?? 1;
-    const pageSize = parseNumber(searchParams.get("pageSize")) ?? 10;
+    const pageSize = parseNumber(searchParams.get("pageSize")) ?? 10; // plus d’UI, mais on supporte l’URL
     return {
       q,
-      filters: { kcalMin, kcalMax, protMin, protMax, carbMin, carbMax, fatMin, fatMax },
-  sort: [{ by: by as any, dir }],
+      categorySlug,
+      sort: [{ by: by as any, dir }],
       page: page < 1 ? 1 : page,
       pageSize: [10, 20, 50].includes(pageSize) ? pageSize : 10,
     };
@@ -108,24 +157,81 @@ const Aliments = () => {
   // Recherche avec debounce
   const [qInput, setQInput] = useState(urlParams.q ?? "");
   useEffect(() => { setQInput(urlParams.q ?? ""); }, [urlParams.q]);
+  // Option B — mémoriser la dernière catégorie choisie par l'utilisateur.
+  // Initialisé à la catégorie actuelle de l'URL (ou "all"), puis mis à jour uniquement sur clic d'onglet.
+  const [lastCategorySlug, setLastCategorySlug] = useState<string>((searchParams.get("category") ?? "all").toLowerCase());
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     const t = setTimeout(() => {
       const current = new URLSearchParams(searchParams);
       if ((qInput ?? "") !== (urlParams.q ?? "")) {
         if (!qInput) current.delete("q"); else current.set("q", qInput);
-        current.set("page", "1"); // reset page on search change
+        const hasQuery = (qInput ?? "").trim().length > 0;
+        if (hasQuery) {
+          current.delete("category");
+        } else {
+    // Restaurer la dernière catégorie choisie quand la recherche est vidée
+    const last = lastCategorySlug;
+    if (last && last !== "all") current.set("category", last); else current.delete("category");
+        }
+        current.set("page", "1");
         setSearchParams(current, { replace: true });
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [qInput]);
+  }, [qInput, lastCategorySlug]);
 
-  const { data, isLoading, isError, error } = useAlimentsPaged(urlParams);
+  // (déplacé plus bas après la déclaration de `data`)
+
+  const [categories, setCategories] = useState<string[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const cats = await listCategories();
+        setCategories(cats);
+      } catch {}
+    })();
+  }, []);
+
+  function slugify(x: string) {
+    return x
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+  function unslugify(slug: string): string | undefined {
+    if (!slug || slug === "all") return undefined;
+    return categories.find((c) => slugify(c) === slug);
+  }
+  const effectiveCategory = unslugify(urlParams.categorySlug);
+
+  const { data, isLoading, isError, error } = useAlimentsPaged({
+    q: urlParams.q,
+    category: effectiveCategory ?? "All",
+    sort: urlParams.sort,
+    page: urlParams.page,
+    pageSize: urlParams.pageSize,
+  });
+
+  const prefs = useFoodPreferences();
+  const setPref = useSetFoodPreference();
+  const clearPref = useRemoveFoodPreference();
   const createMut = useCreateAliment();
-  const updateMut = useUpdateAliment();
+  const paramsKey = {
+    q: urlParams.q,
+    category: effectiveCategory ?? "All",
+    sort: urlParams.sort,
+    page: urlParams.page,
+    pageSize: urlParams.pageSize,
+  } as const;
+  const updateMut = useUpdateAliment(paramsKey);
   const deleteMut = useDeleteAliment();
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState<{ open: boolean; item?: Aliment | null }>({ open: false, item: null });
+
+  // Auto-switch désactivé: on ne force plus la catégorie d'onglet selon les résultats.
 
   const onCreate = async (values: AlimentInput) => {
     try {
@@ -164,92 +270,86 @@ const Aliments = () => {
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h1 className="text-3xl font-bold">Aliments</h1>
-          <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-            <DialogTrigger asChild>
-              <Button>Nouveau</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Nouvel aliment</DialogTitle>
-              </DialogHeader>
-              <AlimentForm
-                defaultValues={{ name: "", kcal_per_100g: 0, protein_g_per_100g: 0, carbs_g_per_100g: 0, fat_g_per_100g: 0, notes: "" }}
-                onSubmit={onCreate}
-                submitting={createMut.isPending}
-              />
-            </DialogContent>
-          </Dialog>
+          {isAdmin && (
+            <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+              <DialogTrigger asChild>
+                <Button>Nouveau</Button>
+              </DialogTrigger>
+              <DialogContent aria-describedby="create-aliment-desc">
+                <DialogHeader>
+                  <DialogTitle>Nouvel aliment</DialogTitle>
+                </DialogHeader>
+                <DialogDescription id="create-aliment-desc" className="sr-only">
+                  Créez un nouvel aliment puis enregistrez pour confirmer.
+                </DialogDescription>
+                <AlimentForm
+                  defaultValues={{ name: "", kcal_per_100g: 0, protein_g_per_100g: 0, carbs_g_per_100g: 0, fat_g_per_100g: 0, notes: "" }}
+                  onSubmit={onCreate}
+                  submitting={createMut.isPending}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
-        {/* Barre d'outils */}
+        {/* Onglets catégories dynamiques */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {["All", ...categories].map((c) => {
+            const slug = c === "All" ? "all" : slugify(c);
+            const active = (searchParams.get("category") ?? "all") === slug;
+      return (
+              <button
+                key={slug}
+  onClick={() => { setLastCategorySlug(slug); const sp = new URLSearchParams(searchParams); if (slug === "all") sp.delete("category"); else sp.set("category", slug); sp.set("page", "1"); setSearchParams(sp); }}
+                className={cn("px-3 py-1 rounded-full text-sm border", active ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/70")}
+                aria-pressed={active}
+                aria-label={`Catégorie ${c}`}
+                title={c}
+              >{c}</button>
+            );
+          })}
+        </div>
+
+        {/* Barre de recherche simplifiée */}
         <Card className="mb-4">
           <CardContent className="pt-6">
-            <div className="grid gap-4 md:grid-cols-5">
-              <div className="md:col-span-2">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="md:col-span-1">
                 <Label htmlFor="search">Recherche</Label>
-                <Input id="search" placeholder="Rechercher par nom" value={qInput} onChange={(e) => setQInput(e.target.value)} />
-              </div>
-              <div>
-                <Label>kcal min</Label>
-                <Input type="number" min="0" value={searchParams.get("kcalMin") ?? ""}
-                  onChange={(e) => { const sp = new URLSearchParams(searchParams); const v = e.target.value; if (!v) sp.delete("kcalMin"); else sp.set("kcalMin", v); sp.set("page","1"); setSearchParams(sp); }} />
-              </div>
-              <div>
-                <Label>kcal max</Label>
-                <Input type="number" min="0" value={searchParams.get("kcalMax") ?? ""}
-                  onChange={(e) => { const sp = new URLSearchParams(searchParams); const v = e.target.value; if (!v) sp.delete("kcalMax"); else sp.set("kcalMax", v); sp.set("page","1"); setSearchParams(sp); }} />
-              </div>
-              <div>
-                <Label>Taille page</Label>
-                <Select value={String(urlParams.pageSize)} onValueChange={(v) => { const sp = new URLSearchParams(searchParams); sp.set("pageSize", v); sp.set("page","1"); setSearchParams(sp); }}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-4 mt-4">
-              <div>
-                <Label>Prot min</Label>
-                <Input type="number" min="0" value={searchParams.get("protMin") ?? ""}
-                  onChange={(e) => { const sp = new URLSearchParams(searchParams); const v = e.target.value; if (!v) sp.delete("protMin"); else sp.set("protMin", v); sp.set("page","1"); setSearchParams(sp); }} />
-              </div>
-              <div>
-                <Label>Prot max</Label>
-                <Input type="number" min="0" value={searchParams.get("protMax") ?? ""}
-                  onChange={(e) => { const sp = new URLSearchParams(searchParams); const v = e.target.value; if (!v) sp.delete("protMax"); else sp.set("protMax", v); sp.set("page","1"); setSearchParams(sp); }} />
-              </div>
-              <div>
-                <Label>Gluc min</Label>
-                <Input type="number" min="0" value={searchParams.get("carbMin") ?? ""}
-                  onChange={(e) => { const sp = new URLSearchParams(searchParams); const v = e.target.value; if (!v) sp.delete("carbMin"); else sp.set("carbMin", v); sp.set("page","1"); setSearchParams(sp); }} />
-              </div>
-              <div>
-                <Label>Gluc max</Label>
-                <Input type="number" min="0" value={searchParams.get("carbMax") ?? ""}
-                  onChange={(e) => { const sp = new URLSearchParams(searchParams); const v = e.target.value; if (!v) sp.delete("carbMax"); else sp.set("carbMax", v); sp.set("page","1"); setSearchParams(sp); }} />
-              </div>
-              <div>
-                <Label>Lip min</Label>
-                <Input type="number" min="0" value={searchParams.get("fatMin") ?? ""}
-                  onChange={(e) => { const sp = new URLSearchParams(searchParams); const v = e.target.value; if (!v) sp.delete("fatMin"); else sp.set("fatMin", v); sp.set("page","1"); setSearchParams(sp); }} />
-              </div>
-              <div>
-                <Label>Lip max</Label>
-                <Input type="number" min="0" value={searchParams.get("fatMax") ?? ""}
-                  onChange={(e) => { const sp = new URLSearchParams(searchParams); const v = e.target.value; if (!v) sp.delete("fatMax"); else sp.set("fatMax", v); sp.set("page","1"); setSearchParams(sp); }} />
+                <div className="relative">
+                  <Input
+                    id="search"
+                    ref={searchInputRef}
+                    placeholder="Rechercher par nom"
+                    value={qInput}
+                    onChange={(e) => setQInput(e.target.value)}
+                    className={qInput ? "pr-9" : undefined}
+                  />
+                  {qInput && (
+                    <button
+                      type="button"
+                      onClick={() => { setQInput(""); searchInputRef.current?.focus(); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label="Effacer la recherche"
+                      title="Effacer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {isLoading && <p className="text-muted-foreground">Chargement...</p>}
+        {isLoading && (
+          <Card><CardContent className="p-6 space-y-2">
+            <div className="h-4 bg-muted rounded w-1/3" />
+            <div className="h-4 bg-muted rounded w-2/3" />
+            <div className="h-4 bg-muted rounded w-1/2" />
+            <div className="h-4 bg-muted rounded w-1/4" />
+          </CardContent></Card>
+        )}
         {isError && <p className="text-red-600">{error?.message ?? "Erreur de chargement."}</p>}
         {!isLoading && !isError && data && (
           <Card>
@@ -258,7 +358,7 @@ const Aliments = () => {
             </CardHeader>
             <CardContent>
               {data.total === 0 ? (
-                (urlParams.q || Object.values(urlParams.filters ?? {}).some((v) => v !== undefined)) ? (
+                (urlParams.q && urlParams.q.length > 0) ? (
                   <div className="text-sm text-muted-foreground">Aucun résultat pour ces critères.</div>
                 ) : (
                   <div className="text-sm text-muted-foreground">Aucun aliment. Créez votre premier aliment.</div>
@@ -272,6 +372,7 @@ const Aliments = () => {
                           Nom {((searchParams.get("sort") ?? "name:asc").startsWith("name:")) ? ((searchParams.get("sort") ?? "").endsWith(":desc") ? "↓" : "↑") : ""}
                         </button>
                       </TableHead>
+                      <TableHead>Catégorie</TableHead>
                       <TableHead className="text-right">
                         <button onClick={() => { const sp = new URLSearchParams(searchParams); const s = sp.get("sort") ?? "name:asc"; const isThis = s.startsWith("kcal:"); const next = isThis && s.endsWith(":asc") ? "kcal:desc" : "kcal:asc"; sp.set("sort", next); setSearchParams(sp); }}>kcal/100g {((searchParams.get("sort") ?? "").startsWith("kcal:")) ? ((searchParams.get("sort") ?? "").endsWith(":desc") ? "↓" : "↑") : ""}</button>
                       </TableHead>
@@ -285,46 +386,74 @@ const Aliments = () => {
                         <button onClick={() => { const sp = new URLSearchParams(searchParams); const s = sp.get("sort") ?? "name:asc"; const isThis = s.startsWith("fat:"); const next = isThis && s.endsWith(":asc") ? "fat:desc" : "fat:asc"; sp.set("sort", next); setSearchParams(sp); }}>Lip {((searchParams.get("sort") ?? "").startsWith("fat:")) ? ((searchParams.get("sort") ?? "").endsWith(":desc") ? "↓" : "↑") : ""}</button>
                       </TableHead>
                       <TableHead>Notes</TableHead>
+                      <TableHead className="text-right w-[1%]"></TableHead>
                       <TableHead className="w-[1%]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {data.items.map((a) => (
                       <TableRow key={a.id}>
-                        <TableCell className="font-medium">{a.name}</TableCell>
+                        <TableCell className={cn("font-medium", (prefs.data?.[a.id] === "allergy") ? "text-red-700 line-through" : undefined)}>{a.name}</TableCell>
+                        <TableCell>{(a as any).category ?? ""}</TableCell>
                         <TableCell className="text-right">{a.kcal_per_100g}</TableCell>
                         <TableCell className="text-right">{a.protein_g_per_100g}</TableCell>
                         <TableCell className="text-right">{a.carbs_g_per_100g}</TableCell>
                         <TableCell className="text-right">{a.fat_g_per_100g}</TableCell>
                         <TableCell className="truncate max-w-[300px]">{a.notes}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            {/* Préférences exclusives */}
+                            {(() => {
+                              const current = prefs.data?.[a.id];
+                              const paramsKey = { ...urlParams, category: effectiveCategory ?? "All" };
+                              const btnClass = "px-2 py-1 rounded text-sm border";
+                              return (
+                                <div className="flex gap-2">
+                                  <button
+                                    className={btnClass}
+                                    onClick={async () => { try { if (current === "like") await clearPref.mutateAsync({ alimentId: a.id, paramsKey }); else await setPref.mutateAsync({ alimentId: a.id, pref: "like", paramsKey }); } catch (e: any) { toast({ title: "Erreur", description: e?.message ?? "Échec préférence.", variant: "destructive" }); } }}
+                                    aria-pressed={current === "like"}
+                                    aria-label={`J'aime ${a.name}`}
+                                    title="J'aime"
+                                    style={{ backgroundColor: current === "like" ? "#16a34a" : undefined, color: current === "like" ? "white" : undefined }}
+                                  >👍</button>
+                                  <button
+                                    className={btnClass}
+                                    onClick={async () => { try { if (current === "dislike") await clearPref.mutateAsync({ alimentId: a.id, paramsKey }); else await setPref.mutateAsync({ alimentId: a.id, pref: "dislike", paramsKey }); } catch (e: any) { toast({ title: "Erreur", description: e?.message ?? "Échec préférence.", variant: "destructive" }); } }}
+                                    aria-pressed={current === "dislike"}
+                                    aria-label={`J'aime pas ${a.name}`}
+                                    title="J'aime pas"
+                                    style={{ backgroundColor: current === "dislike" ? "#f59e0b" : undefined, color: current === "dislike" ? "black" : undefined }}
+                                  >👎</button>
+                                  <button
+                                    className={btnClass}
+                                    onClick={async () => { try { if (current === "allergy") await clearPref.mutateAsync({ alimentId: a.id, paramsKey }); else await setPref.mutateAsync({ alimentId: a.id, pref: "allergy", paramsKey }); } catch (e: any) { toast({ title: "Erreur", description: e?.message ?? "Échec préférence.", variant: "destructive" }); } }}
+                                    aria-pressed={current === "allergy"}
+                                    aria-label={`Allergie ${a.name}`}
+                                    title="Allergie"
+                                    style={{ backgroundColor: current === "allergy" ? "#dc2626" : undefined, color: current === "allergy" ? "white" : undefined }}
+                                  >🚫</button>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-2 justify-end">
-                            <Dialog
-                              open={openEdit.open && openEdit.item?.id === a.id}
-                              onOpenChange={(v) => setOpenEdit({ open: v, item: v ? a : null })}
-                            >
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm">Éditer</Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Modifier l’aliment</DialogTitle>
-                                </DialogHeader>
-                                <AlimentForm
-                                  defaultValues={{
-                                    name: a.name,
-                                    kcal_per_100g: Number(a.kcal_per_100g),
-                                    protein_g_per_100g: Number(a.protein_g_per_100g),
-                                    carbs_g_per_100g: Number(a.carbs_g_per_100g),
-                                    fat_g_per_100g: Number(a.fat_g_per_100g),
-                                    notes: a.notes ?? "",
-                                  }}
-                                  onSubmit={onEdit}
+                            {isAdmin && (
+                              <>
+                                <EditAlimentDialog
+                                  a={a}
+                                  isOpen={openEdit.open && openEdit.item?.id === a.id}
+                                  onOpenChange={(v) => setOpenEdit({ open: v, item: v ? a : null })}
                                   submitting={updateMut.isPending}
+                                  onSubmit={onEdit}
                                 />
-                              </DialogContent>
-                            </Dialog>
-                            <Button variant="destructive" size="sm" onClick={() => onDelete(a)} disabled={deleteMut.isPending}>Supprimer</Button>
+                                <Button variant="destructive" size="sm" onClick={() => onDelete(a)} disabled={deleteMut.isPending} aria-label="Supprimer" title="Supprimer">
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

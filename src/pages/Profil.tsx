@@ -818,11 +818,11 @@ const Profil = () => {
 
         {/* Confirmation dialog */}
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <DialogContent>
+          <DialogContent aria-describedby="profile-confirm-desc">
             <DialogHeader>
               <DialogTitle>Confirmer les modifications</DialogTitle>
-              <DialogDescription>Un récapitulatif des champs modifiés est affiché ci-dessous.</DialogDescription>
             </DialogHeader>
+            <DialogDescription id="profile-confirm-desc" className="sr-only">Un récapitulatif des champs modifiés est affiché ci-dessous.</DialogDescription>
             <div className="space-y-2 text-sm">
               {Object.keys(changes).length === 0 ? (
                 <div>Aucune modification détectée.</div>

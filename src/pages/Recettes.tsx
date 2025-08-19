@@ -1,7 +1,7 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -246,8 +246,11 @@ const Recettes = () => {
           <h1 className="text-3xl font-bold">Recettes</h1>
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger asChild><Button>Nouvelle recette</Button></DialogTrigger>
-            <DialogContent>
+            <DialogContent aria-describedby="create-recipe-desc">
               <DialogHeader><DialogTitle>Nouvelle recette</DialogTitle></DialogHeader>
+              <DialogDescription id="create-recipe-desc" className="sr-only">
+                Créez une recette en indiquant son nom, le nombre de portions et des notes éventuelles.
+              </DialogDescription>
               <RecipeForm defaultValues={{ name: "", servings: 1, notes: "" }} submitting={createMut.isPending} onSubmit={onCreate} />
             </DialogContent>
           </Dialog>
@@ -300,8 +303,11 @@ const Recettes = () => {
                                 onOpenChange={(v) => setOpenEdit({ open: v, recipe: v ? r : null })}
                               >
                                 <DialogTrigger asChild><Button variant="outline" size="sm">Éditer</Button></DialogTrigger>
-                                <DialogContent className="max-w-4xl overflow-y-auto max-h-[85vh]">
+                                <DialogContent className="max-w-4xl overflow-y-auto max-h-[85vh]" aria-describedby={`edit-recipe-desc-${r.id}`}>
                                   <DialogHeader><DialogTitle>Éditer: {r.name}</DialogTitle></DialogHeader>
+                                  <DialogDescription id={`edit-recipe-desc-${r.id}`} className="sr-only">
+                                    Modifiez les détails de la recette et ses ingrédients, puis enregistrez vos changements.
+                                  </DialogDescription>
                                   <div className="grid md:grid-cols-2 gap-6">
                                     <div>
                                       <h3 className="font-semibold mb-2">Détails</h3>
