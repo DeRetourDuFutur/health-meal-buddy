@@ -35,6 +35,7 @@ import type { ProfileInput } from "@/lib/db/profiles";
 import { profileInputSchema } from "@/lib/db/profiles";
 import { Lock, Unlock, Trash2 } from "lucide-react";
 import { AvatarManagerCard } from "./profile/components/AvatarManagerCard";
+import { AccountInfoCard } from "./profile/components/AccountInfoCard";
 
 const Profil = () => {
   const { user } = useAuth();
@@ -196,28 +197,7 @@ const Profil = () => {
           {/* En-tête: Compte + Avatar alignés */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Compte */}
-            <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Compte</CardTitle>
-              <CardDescription>Informations de base liées à votre compte.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Email/Login</span>
-                <span className="font-medium">{user?.email ?? "—"}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">ID utilisateur</span>
-                <span className="font-mono text-xs">{user?.id ?? "—"}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Créé le</span>
-                <span className="font-medium">
-                  {user?.created_at ? new Date(user.created_at).toLocaleString() : "—"}
-                </span>
-              </div>
-            </CardContent>
-            </Card>
+            <AccountInfoCard email={user?.email} userId={user?.id ?? null} createdAt={user?.created_at ?? null} />
 
             {/* Avatar */}
             <AvatarManagerCard
