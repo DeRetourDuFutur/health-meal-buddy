@@ -6,13 +6,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { DialogFooter } from "@/components/ui/dialog";
 import { AccessibleDialog } from "@/components/ui/AccessibleDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+// Avatar inline remplacé par un composant dédié
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
@@ -22,9 +21,6 @@ import {
   usePathologies,
   useMyPathologies,
   useMyProfileHistory,
-  useUpdateAvatar,
-  useDeleteAvatar,
-  getAvatarUrlOrNull,
   checkLoginAvailable,
   useMyCustomPathologies,
   useAddMyCustomPathology,
@@ -37,7 +33,8 @@ import {
 } from "@/hooks/useProfile";
 import type { ProfileInput } from "@/lib/db/profiles";
 import { profileInputSchema } from "@/lib/db/profiles";
-import { Lock, Unlock, Trash2, Upload } from "lucide-react";
+import { Lock, Unlock, Trash2 } from "lucide-react";
+import { AvatarManagerCard } from "./profile/components/AvatarManagerCard";
 
 const Profil = () => {
   const { user } = useAuth();
@@ -58,9 +55,6 @@ const Profil = () => {
   const [customCode, setCustomCode] = useState("");
   const sanitizeCode = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 2);
   useMyProfileHistory(10); // prime cache (affichage optionnel)
-  const uploadAvatar = useUpdateAvatar();
-  const delAvatar = useDeleteAvatar();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const customInputRef = useRef<HTMLInputElement | null>(null);
   // Aides: sets pour détection des pathos "défaut" SÉLECTIONNÉS par l'utilisateur
   const selectedDefaultCodes = useMemo(() => new Set((myPathos.list.data ?? [])
@@ -112,15 +106,7 @@ const Profil = () => {
     });
   }, [profileQ.data]);
 
-  // Avatar display (signed URL)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarVersion, setAvatarVersion] = useState(0); // permet de forcer un refresh signé
-  useEffect(() => {
-    (async () => {
-      const url = await getAvatarUrlOrNull(profileQ.data?.avatar_url ?? null);
-      setAvatarUrl(url);
-    })();
-  }, [profileQ.data?.avatar_url, avatarVersion]);
+  // Avatar géré par AvatarManagerCard (extrait)
 
   // Login availability check (debounce)
   const [loginStatus, setLoginStatus] = useState<"idle" | "checking" | "ok" | "taken">("idle");
@@ -234,85 +220,11 @@ const Profil = () => {
             </Card>
 
             {/* Avatar */}
-            <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>Avatar</CardTitle>
-              <CardDescription>Image de profil stockée de façon privée.</CardDescription>
-            </CardHeader>
-              <CardContent className="flex items-center gap-4">
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <Avatar className="h-16 w-16 cursor-zoom-in">
-                    <AvatarImage src={avatarUrl ?? "/placeholder.svg"} alt="Avatar" />
-                    <AvatarFallback className={user?.user_metadata?.role === "admin" ? "bg-emerald-900 text-white" : undefined}>
-                      {((profileQ.data?.first_name?.[0] ?? profileQ.data?.last_name?.[0] ?? "?") as string).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </HoverCardTrigger>
-                <HoverCardContent side="top" align="start" className="w-auto p-2">
-                  <Avatar className="h-40 w-40">
-                    <AvatarImage src={avatarUrl ?? "/placeholder.svg"} alt="Avatar agrandi" />
-                    <AvatarFallback className={user?.user_metadata?.role === "admin" ? "bg-emerald-900 text-white" : undefined}>
-                      {((profileQ.data?.first_name?.[0] ?? profileQ.data?.last_name?.[0] ?? "?") as string).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </HoverCardContent>
-              </HoverCard>
-              <div className="space-x-2">
-        <input ref={(el) => (fileInputRef.current = el)} type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                  const inputEl = e.currentTarget;
-                  const f = inputEl.files?.[0];
-                  if (!f) return;
-                  try {
-                    const path = await uploadAvatar.mutateAsync(f);
-                    toast({ title: "Avatar mis à jour" });
-                    // On génère immédiatement une URL signée pour ce path (persiste après 1s)
-                    const signed = await getAvatarUrlOrNull(path);
-                    if (signed) setAvatarUrl(signed);
-                    // Ensuite, on forcera un refresh mineur au cas où la DB se met à jour différemment
-                    setTimeout(() => setAvatarVersion((v) => v + 1), 1500);
-                  } catch (err) {
-                    const msg = err && typeof err === "object" && "message" in err ? String((err as { message?: unknown }).message) : "Upload impossible";
-                    toast({ title: "Erreur", description: msg, variant: "destructive" });
-                  } finally {
-                    if (inputEl) inputEl.value = ""; // reset sans accéder à un event relâché
-                  }
-                }} />
-                <Button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadAvatar.isPending}
-                  title="Charger un avatar"
-                  className="h-9 w-9 p-0 rounded-full justify-center"
-                >
-                  <Upload className="h-5 w-5" aria-hidden="true" />
-                  <span className="sr-only">Charger</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={delAvatar.isPending}
-                  onClick={async () => {
-                    const ok = window.confirm("Supprimer l'avatar ?");
-                    if (!ok) return;
-                    try {
-                      await delAvatar.mutateAsync(profileQ.data?.avatar_url ?? undefined);
-                      setAvatarUrl("/placeholder.svg");
-                      toast({ title: "Avatar supprimé" });
-                    } catch (e) {
-                      const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Suppression impossible";
-                      toast({ title: "Erreur", description: msg, variant: "destructive" });
-                    } finally {
-                      setTimeout(() => setAvatarVersion((v) => v + 1), 500);
-                    }
-                  }}
-                >
-                  <Trash2 className="h-5 w-5" aria-hidden="true" />
-                  <span className="sr-only">Supprimer</span>
-                </Button>
-              </div>
-            </CardContent>
-            </Card>
+            <AvatarManagerCard
+              initialAvatarPath={profileQ.data?.avatar_url}
+              userRoleIsAdmin={user?.user_metadata?.role === "admin"}
+              initials={(profileQ.data?.first_name?.[0] ?? profileQ.data?.last_name?.[0] ?? "?") as string}
+            />
           </div>
 
           {/* Formulaire profil */}
