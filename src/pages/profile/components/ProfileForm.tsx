@@ -5,7 +5,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AccessibleDialog } from "@/components/ui/AccessibleDialog";
-import { DialogFooter } from "@/components/ui/dialog";
+import { DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Lock, Unlock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { computeBmi, checkLoginAvailable, useUpsertMyProfile } from "@/hooks/useProfile";
@@ -349,35 +349,38 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
         title="Confirmer les modifications"
         description="Vérifiez les changements avant d’enregistrer"
         body={
-          <div className="space-y-2 text-sm">
-            {Object.keys(changes).length === 0 ? (
-              <div>Aucune modification détectée.</div>
-            ) : (
-              <ul className="list-disc pl-5">
-                {Object.entries(changes).map(([k, v]) => {
-                  const labels: Record<string, string> = {
-                    login: "Identifiant",
-                    first_name: "Prénom",
-                    last_name: "Nom",
-                    age: "Âge",
-                    height_cm: "Taille (cm)",
-                    weight_kg: "Poids (kg)",
-                    needs_kcal: "Besoins (kcal/j)",
-                    needs_protein_g: "Protéines (g/j)",
-                    needs_carbs_g: "Glucides (g/j)",
-                    needs_fat_g: "Lipides (g/j)",
-                    needs_display_mode: "Affichage objectifs",
-                    privacy: "Confidentialité",
-                  };
-                  const label = labels[k] || k;
-                  const value = k === "privacy" ? "(modifié)" : String(v);
-                  return (
-                    <li key={k}><span className="font-medium">{label}</span>: {value}</li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+          <>
+            <DialogTitle className="sr-only">Confirmer les modifications</DialogTitle>
+            <div className="space-y-2 text-sm">
+              {Object.keys(changes).length === 0 ? (
+                <div>Aucune modification détectée.</div>
+              ) : (
+                <ul className="list-disc pl-5">
+                  {Object.entries(changes).map(([k, v]) => {
+                    const labels: Record<string, string> = {
+                      login: "Identifiant",
+                      first_name: "Prénom",
+                      last_name: "Nom",
+                      age: "Âge",
+                      height_cm: "Taille (cm)",
+                      weight_kg: "Poids (kg)",
+                      needs_kcal: "Besoins (kcal/j)",
+                      needs_protein_g: "Protéines (g/j)",
+                      needs_carbs_g: "Glucides (g/j)",
+                      needs_fat_g: "Lipides (g/j)",
+                      needs_display_mode: "Affichage objectifs",
+                      privacy: "Confidentialité",
+                    };
+                    const label = labels[k] || k;
+                    const value = k === "privacy" ? "(modifié)" : String(v);
+                    return (
+                      <li key={k}><span className="font-medium">{label}</span>: {value}</li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </>
         }
         footer={
           <DialogFooter>
