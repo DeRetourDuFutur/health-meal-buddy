@@ -11,16 +11,12 @@ import {
 type AccessibleDialogProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  /** base unique et stable pour les ids, ex: "edit-aliment-<id>" */
-  idBase: string;
+  idBase: string; // ex: "edit-aliment-123"
   title: string;
-  /** phrase courte ; si absent => pas d’aria-describedby */
   description?: string;
-  /** contenu principal */
   body?: React.ReactNode;
   footer?: React.ReactNode;
-  children?: React.ReactNode; // alternative à body
-  /** bouton ou élément déclencheur optionnel */
+  children?: React.ReactNode;
   trigger?: React.ReactNode;
 };
 
@@ -35,19 +31,23 @@ export function AccessibleDialog({
   children,
   trigger,
 }: AccessibleDialogProps) {
+  // Ids stables et réutilisés partout
+  const titleId = `${idBase}-title`;
   const descId = `${idBase}-desc`;
   const descText = description ?? title ?? "Boîte de dialogue";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent aria-describedby={descId}>
+      {/* Fournit explicitement les liens ARIA pour éviter les warnings en dev */}
+      <DialogContent aria-labelledby={titleId} aria-describedby={descId}>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle id={titleId}>{title}</DialogTitle>
+          {/* Toujours présent pour l’accessibilité; le masquer visuellement si description est vide */}
+          <DialogDescription id={descId} className={description ? undefined : "sr-only"}>
+            {descText}
+          </DialogDescription>
         </DialogHeader>
-        <DialogDescription id={descId} className="sr-only">
-          {descText}
-        </DialogDescription>
 
         {body ?? children}
         {footer}

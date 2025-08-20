@@ -6,14 +6,14 @@ export type FoodPrefsMap = Record<string, FoodPreference>;
 
 // Récupère les préférences de l'utilisateur courant sous forme de map { aliment_id: preference }
 export async function getMyFoodPreferences(): Promise<FoodPrefsMap> {
-  // Schéma confirmé: food_id (uuid), preference (text), user_id (uuid)
+  // Schéma: aliment_id (uuid), preference (text), user_id (uuid)
   const { data, error } = await supabase
     .from("user_food_preferences")
-    .select("food_id, preference");
+    .select("aliment_id, preference");
   if (error) throw new Error(error.message ?? "Une erreur est survenue.");
   const map: FoodPrefsMap = {};
-  for (const row of (data ?? []) as Array<{ food_id?: string; preference?: string }>) {
-    const alimentId = row.food_id;
+  for (const row of (data ?? []) as Array<{ aliment_id?: string; preference?: string }>) {
+    const alimentId = row.aliment_id;
     const pref = row.preference as FoodPreference | undefined;
     if (alimentId && pref) map[alimentId] = pref;
   }
@@ -31,11 +31,11 @@ export async function setMyFoodPreference(
   const user = userRes?.user;
   if (!user) throw new Error("Utilisateur non connecté.");
 
-  const payload = { food_id: alimentId, user_id: user.id, preference: pref } as const;
+  const payload = { aliment_id: alimentId, user_id: user.id, preference: pref } as const;
   // Tentative UPSERT; si pas de contrainte ON CONFLICT, fallback delete+insert
   const up = await supabase
     .from("user_food_preferences")
-    .upsert(payload, { onConflict: "user_id,food_id" });
+    .upsert(payload, { onConflict: "user_id,aliment_id" });
   if (!up.error) return;
 
   const msg = (up.error.message ?? "").toLowerCase();
@@ -48,7 +48,7 @@ export async function setMyFoodPreference(
     .from("user_food_preferences")
     .delete()
     .eq("user_id", user.id)
-    .eq("food_id", alimentId);
+  .eq("aliment_id", alimentId);
   const ins = await supabase.from("user_food_preferences").insert(payload);
   if (ins.error) throw new Error(ins.error.message ?? "Impossible d'enregistrer la préférence.");
 }
@@ -64,6 +64,6 @@ export async function removeMyFoodPreference(alimentId: string): Promise<void> {
     .from("user_food_preferences")
     .delete()
     .eq("user_id", user.id)
-    .eq("food_id", alimentId);
+  .eq("aliment_id", alimentId);
   if (error) throw new Error(error.message ?? "Impossible de supprimer la préférence.");
 }
