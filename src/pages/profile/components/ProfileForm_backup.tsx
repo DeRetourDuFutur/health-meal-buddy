@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -71,7 +71,7 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
 
   const onSubmit = async () => {
     if (!hasChanges) {
-      toast({ title: "Aucune modification", description: "Rien Ã  enregistrer." });
+      toast({ title: "Aucune modification", description: "Rien à enregistrer." });
       return;
     }
     setConfirmOpen(true);
@@ -80,7 +80,7 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
   const doSave = async () => {
     try {
       await upsert.mutateAsync(changes);
-      toast({ title: "EnregistrÃ©", description: "Profil mis Ã  jour." });
+      toast({ title: "Enregistré", description: "Profil mis à jour." });
       setConfirmOpen(false);
     } catch (e) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: unknown }).message) : "Impossible d'enregistrer.";
@@ -93,19 +93,19 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
       <Card>
         <CardHeader>
           <CardTitle>Profil</CardTitle>
-          <CardDescription>Infos personnelles et confidentialitÃ©.</CardDescription>
+          <CardDescription>Infos personnelles et confidentialité.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
-              {/* Ligne 1: PrÃ©nom / NOM (uppercase visuel) */}
+              {/* Ligne 1: Prénom / NOM (uppercase visuel) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="first_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>PrÃ©nom</FormLabel>
+                      <FormLabel>Prénom</FormLabel>
                       <FormControl>
                         <Input value={field.value ?? ""} onChange={field.onChange} />
                       </FormControl>
@@ -128,14 +128,14 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
                 />
               </div>
 
-              {/* Ligne 2: Ã‚ge / Taille / Poids / IMC */}
+              {/* Ligne 2: Âge / Taille / Poids / IMC */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField
                   control={form.control}
                   name="age"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Ã‚ge</FormLabel>
+                      <FormLabel>Âge</FormLabel>
                       <FormControl>
                         <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
                       </FormControl>
@@ -169,7 +169,7 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
                     </FormItem>
                   )}
                 />
-                {/* IMC (lecture seule) avec badge colorÃ© + libellÃ© */}
+                {/* IMC (lecture seule) avec badge coloré + libellé */}
                 <div>
                   <FormItem>
                     <FormLabel>IMC</FormLabel>
@@ -181,7 +181,7 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
                             return (
                               <>
                                 <Input className="w-20 md:w-24 flex-none" disabled value="" />
-                                <span className="text-xs text-muted-foreground">â€”</span>
+                                <span className="text-xs text-muted-foreground">—</span>
                               </>
                             );
                           }
@@ -198,7 +198,7 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
                               ? "Normal"
                               : v < 30
                                 ? "Surpoids"
-                                : "ObÃ¨se";
+                                : "Obèse";
                           return (
                             <>
                               <Input className="w-20 md:w-24 flex-none" disabled value={v.toFixed(1)} />
@@ -253,14 +253,14 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
                 />
               </div>
 
-              {/* Ligne 4: ProtÃ©ines / Glucides / Lipides */}
+              {/* Ligne 4: Protéines / Glucides / Lipides */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="needs_protein_g"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>ProtÃ©ines (g/j)</FormLabel>
+                      <FormLabel>Protéines (g/j)</FormLabel>
                       <FormControl>
                         <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} />
                       </FormControl>
@@ -296,13 +296,13 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
                 />
               </div>
 
-              {/* ConfidentialitÃ© par champ (icÃ´nes cadenas) - masquÃ©e en UI */}
+              {/* Confidentialité par champ (icônes cadenas) - masquée en UI */}
               {showPrivacy && (
                 <div className="col-span-full rounded-md border p-3">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <div className="font-medium">ConfidentialitÃ©</div>
-                      <div className="text-xs text-muted-foreground">Cadenas vert = public, rouge = privÃ©.</div>
+                      <div className="font-medium">Confidentialité</div>
+                      <div className="text-xs text-muted-foreground">Cadenas vert = public, rouge = privé.</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -310,7 +310,7 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
                       const isPrivate = !!(form.getValues("privacy") as any)?.[k as string];
                       return (
                         <div key={k} className="flex items-center justify-between gap-2 border rounded-md px-3 py-2">
-                          <span className="text-sm">{k === "age" ? "Ã‚ge" : k === "height_cm" ? "Taille" : "Poids"}</span>
+                          <span className="text-sm">{k === "age" ? "Âge" : k === "height_cm" ? "Taille" : "Poids"}</span>
                           <Button
                             type="button"
                             variant="ghost"
@@ -320,7 +320,7 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
                               if (isPrivate) delete priv[k as string]; else priv[k as string] = true;
                               form.setValue("privacy", priv, { shouldDirty: true });
                             }}
-                            title={isPrivate ? "PrivÃ©" : "Public"}
+                            title={isPrivate ? "Privé" : "Public"}
                           >
                             {isPrivate ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                           </Button>
@@ -332,20 +332,64 @@ export function ProfileForm({ form, initial, showPrivacy = false }: ProfileFormP
               )}
 
               <div className="col-span-full flex gap-2">
-                <Button type="submit" disabled={upsert.isPending}>{upsert.isPending ? "Enregistrementâ€¦" : "Enregistrer"}</Button>
-                {hasChanges ? <span className="text-xs text-muted-foreground self-center">Des modifications seront enregistrÃ©es aprÃ¨s confirmation.</span> : null}
+                <Button type="submit" disabled={upsert.isPending}>{upsert.isPending ? "Enregistrement…" : "Enregistrer"}</Button>
+                {hasChanges ? <span className="text-xs text-muted-foreground self-center">Des modifications seront enregistrées après confirmation.</span> : null}
               </div>
             </form>
           </Form>
         </CardContent>
       </Card>
 
-      <ConfirmSaveDialog
+      {/* Confirmation dialog */}
+      <AccessibleDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        changes={changes}
-        onConfirm={doSave}
-        isLoading={upsert.isPending}
+        idBase="profile-confirm"
+        title="Confirmer les modifications"
+        description="Vérifiez les changements avant d’enregistrer"
+        body={
+          <>
+            <DialogTitle className="sr-only">Confirmer les modifications</DialogTitle>
+            <div className="space-y-2 text-sm">
+              {Object.keys(changes).length === 0 ? (
+                <div>Aucune modification détectée.</div>
+              ) : (
+                <ul className="list-disc pl-5">
+                  {Object.entries(changes).map(([k, v]) => {
+                    const labels: Record<string, string> = {
+                      login: "Identifiant",
+                      first_name: "Prénom",
+                      last_name: "Nom",
+                      age: "Âge",
+                      height_cm: "Taille (cm)",
+                      weight_kg: "Poids (kg)",
+                      needs_kcal: "Besoins (kcal/j)",
+                      needs_protein_g: "Protéines (g/j)",
+                      needs_carbs_g: "Glucides (g/j)",
+                      needs_fat_g: "Lipides (g/j)",
+                      needs_display_mode: "Affichage objectifs",
+                      privacy: "Confidentialité",
+                    };
+                    const label = labels[k] || k;
+                    const value = k === "privacy" ? "(modifié)" : String(v);
+                    return (
+                      <li key={k}><span className="font-medium">{label}</span>: {value}</li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </>
+        }
+        footer={
+          <ConfirmSaveDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            changes={changes}
+            onConfirm={doSave}
+            isLoading={upsert.isPending}
+          />
+        }
       />
     </>
   );
